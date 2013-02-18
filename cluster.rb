@@ -34,7 +34,7 @@ class RedisCluster
                 addr = n[:host]+":"+n[:port].to_s if addr == ":0"
                 addr_ip,addr_port = addr.split(":")
                 addr_port = addr_port.to_i
-                addr = {:host => addr_ip, :port => addr_port}
+                addr = {:host => addr_ip, :port => addr_port, :name => addr}
                 @nodes << addr
                 slots.split(",").each{|range|
                     last = nil
@@ -75,7 +75,16 @@ class RedisCluster
     # TODO: Return a link to a random node if we can't connect to the
     # specified instance, so that if the node is failing we'll be
     # redirected.
+    #
+    # TODO: Kill not recently used connections if we reached the max
+    # number of connections but need to create a new one.
     def get_connection_by_slot(slot)
+        node = @slots[slot]
+        if not @connections[node[:name]]
+            @connections[node[:name]] = Redis.new(:host => node[:host],
+                                                 :port => node[:port])
+        end
+        @connections[node[:name]]
     end
 
     # Dispatch commands.
@@ -84,6 +93,7 @@ class RedisCluster
         raise "No way to dispatch this command to Redis Cluster." if !key
         slot = keyslot(key)
         r = get_connection_by_slot(slot)
+        r.send(argv[0].to_sym,*argv[1..-1])
     end
 end
 
