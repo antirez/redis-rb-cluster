@@ -23,9 +23,16 @@ class RedisCluster
             r.cluster("nodes").each_line{|l|
                 fields = l.split(" ")
                 addr = fields[1]
-                slots = fields[-1]
+                slots = fields[7..-1].join(",")
                 addr = n[:host]+":"+n[:port].to_s if addr == ":0"
-                puts "#{addr}, #{slots}"
+                slots.split(",").each{|range|
+                    last = nil
+                    first,last = range.split("-")
+                    last = first if !last
+                    ((first.to_i)..(last.to_i)).each{|slot|
+                        @slots[slot] = addr
+                    }
+                }
             }
         }
     end
