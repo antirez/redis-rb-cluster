@@ -5,6 +5,7 @@ require './crc16'
 class RedisCluster
 
     RedisClusterHashSlots = 16384
+    RedisClusterRequestTTL = 16
 
     def initialize(startup_nodes,connections,opt={})
         @startup_nodes = startup_nodes
@@ -122,20 +123,29 @@ class RedisCluster
 
     # Dispatch commands.
     def send_cluster_command(argv)
-        ttl = 32; # Max number of redirections
+        ttl = RedisClusterRequestTTL; # Max number of redirections
         e = ""
         asking = false
+        try_random_node = false
         while ttl > 0
             ttl -= 1
             key = get_key_from_command(argv)
             raise "No way to dispatch this command to Redis Cluster." if !key
             slot = keyslot(key)
-            r = get_connection_by_slot(slot)
+            if try_random_node
+                r = get_random_connection
+                try_random_node = false
+            else
+                r = get_connection_by_slot(slot)
+            end
             begin
                 # TODO: use pipelining to send asking and save a rtt.
                 r.asking if asking
                 asking = false
                 return r.send(argv[0].to_sym,*argv[1..-1])
+            rescue Errno::ECONNREFUSED
+                try_random_node = true
+                sleep(0.1) if ttl < RedisClusterRequestTTL/2
             rescue => e
                 errv = e.to_s.split
                 if errv[0] == "MOVED" || errv[0] == "ASK"
