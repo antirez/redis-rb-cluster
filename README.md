@@ -15,7 +15,7 @@ In order to create a new Redis Cluster instance use:
         {:host => "127.0.0.1", :port => 6379},
         {:host => "127.0.0.1", :port => 6380}
     ]
-    max_cached_connectiosn = 2
+    max_cached_connections = 2
     rc = RedisCluster.new(startup_nodes,max_cached_connections)
 
 The startup nodes are a list of addresses of Cluster Nodes, for the client to
