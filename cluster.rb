@@ -121,9 +121,6 @@ class RedisCluster
     # Given a slot return the link (Redis instance) to the mapped node.
     # Make sure to create a connection with the node if we don't have
     # one.
-    #
-    # TODO: Kill not recently used connections if we reached the max
-    # number of connections but need to create a new one.
     def get_connection_by_slot(slot)
         node = @slots[slot]
         # If we don't know what the mapping is, return a random node.
