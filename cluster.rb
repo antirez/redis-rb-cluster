@@ -77,6 +77,19 @@ class RedisCluster
         end
     end
 
+    # If the current number of connections is already the maximum number
+    # allowed, close a random connection. This should be called every time
+    # we cache a new connection in the @connections hash.
+    def close_existing_connection
+        while @connections.length >= @max_connections
+            @connections.each{|n,r|
+                @connections.delete(n)
+                # TODO: close 'r' when redis-rb will implement it.
+                break
+            }
+        end
+    end
+
     # Return a link to a random node, or raise an error if no node can be
     # contacted. This function is only called when we can't reach the node
     # associated with a given hash slot, or when we don't know the right
@@ -92,6 +105,7 @@ class RedisCluster
                 return @connections[n[:name]] if @connections[n[:name]]
                 r = Redis.new(:host => n[:host], :port => n[:port])
                 if r.ping == "PONG"
+                    close_existing_connection
                     @connections[n[:name]] = r
                     return r
                 else
@@ -117,6 +131,7 @@ class RedisCluster
         node[:name] = "#{node[:host]}:#{node[:port]}" if not node[:name]
         if not @connections[node[:name]]
             begin
+                close_existing_connection
                 @connections[node[:name]] = Redis.new(:host => node[:host],
                                                      :port => node[:port])
             rescue
@@ -187,7 +202,7 @@ startup_nodes = [
     {:host => "127.0.0.1", :port => 6380}
 ]
 rc = RedisCluster.new(startup_nodes,2)
-rc.flush_slots_cache
+# rc.flush_slots_cache
 (0..10000000).each{|x|
     rc.set("foo#{x}",x)
     puts rc.get("foo#{x}")
