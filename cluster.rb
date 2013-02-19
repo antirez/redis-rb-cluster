@@ -143,7 +143,7 @@ class RedisCluster
                 r.asking if asking
                 asking = false
                 return r.send(argv[0].to_sym,*argv[1..-1])
-            rescue Errno::ECONNREFUSED
+            rescue Errno::ECONNREFUSED, Redis::TimeoutError
                 try_random_node = true
                 sleep(0.1) if ttl < RedisClusterRequestTTL/2
             rescue => e
