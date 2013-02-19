@@ -36,6 +36,15 @@ class RedisCluster
         initialize_slots_cache
     end
 
+    # Given a node (that is just a Ruby hash) give it a name just
+    # concatenating the host and port. We use the node name as a key
+    # to cache connections to that node.
+    def set_node_name!(n)
+        if !n[:name]
+            n[:name] = "#{n[:host]}:#{n[:port]}"
+        end
+    end
+
     # Contact the startup nodes and try to fetch the hash slots -> instances
     # map in order to initialize the @slots hash.
     def initialize_slots_cache
@@ -76,9 +85,10 @@ class RedisCluster
     # Use @nodes to populate @startup_nodes, so that we have more chances
     # if a subset of the cluster fails.
     def populate_startup_nodes
-        @nodes.each{|n|
-            @startup_nodes << n
-        }
+        # Make sure every node has already a name, so that later the
+        # Array uniq! method will work reliably.
+        @startup_nodes.each{|n| set_node_name n}
+        @nodes.each{|n| @startup_nodes << n}
         @startup_nodes.uniq!
     end
 
@@ -130,7 +140,7 @@ class RedisCluster
         e = ""
         @startup_nodes.each{|n|
             begin
-                n[:name] = "#{n[:host]}:#{n[:port]}" if not n[:name]
+                set_node_name!(n)
                 return @connections[n[:name]] if @connections[n[:name]]
                 r = Redis.new(:host => n[:host], :port => n[:port])
                 if r.ping == "PONG"
@@ -154,7 +164,7 @@ class RedisCluster
         node = @slots[slot]
         # If we don't know what the mapping is, return a random node.
         return get_random_connection if !node
-        node[:name] = "#{node[:host]}:#{node[:port]}" if not node[:name]
+        set_node_name!(node)
         if not @connections[node[:name]]
             begin
                 close_existing_connection
@@ -199,7 +209,6 @@ class RedisCluster
             rescue => e
                 errv = e.to_s.split
                 if errv[0] == "MOVED" || errv[0] == "ASK"
-                    puts :moved
                     asking = true if errv[0] == "ASK"
                     newslot = errv[1].to_i
                     node_ip,node_port = errv[2].split(":")
