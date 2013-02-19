@@ -88,8 +88,15 @@ class RedisCluster
         e = ""
         @startup_nodes.each{|n|
             begin
+                n[:name] = "#{n[:host]}:#{n[:port]}" if not n[:name]
+                return @connections[n[:name]] if @connections[n[:name]]
                 r = Redis.new(:host => n[:host], :port => n[:port])
-                return r if r.ping == "PONG"
+                if r.ping == "PONG"
+                    @connections[n[:name]] = r
+                    return r
+                else
+                    # TODO: close 'r' ASAP when it will be possible.
+                end
             rescue => e
                 # Just try with the next node.
             end
