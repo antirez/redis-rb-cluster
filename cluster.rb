@@ -38,8 +38,6 @@ class RedisCluster
 
     # Contact the startup nodes and try to fetch the hash slots -> instances
     # map in order to initialize the @slots hash.
-    #
-    # TODO: Use new nodes to populate the startup nodes array.
     def initialize_slots_cache
         @startup_nodes.each{|n|
             begin
@@ -65,6 +63,7 @@ class RedisCluster
                         }
                     }
                 }
+                populate_startup_nodes
             rescue
                 # Try with the next node on error.
                 next
@@ -72,6 +71,15 @@ class RedisCluster
             # Exit the loop as long as the first node replies
             break
         }
+    end
+
+    # Use @nodes to populate @startup_nodes, so that we have more chances
+    # if a subset of the cluster fails.
+    def populate_startup_nodes
+        @nodes.each{|n|
+            @startup_nodes << n
+        }
+        @startup_nodes.uniq!
     end
 
     # Flush the cache, mostly useful for debugging when we want to force
