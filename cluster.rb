@@ -85,15 +85,16 @@ class RedisCluster
     # The function will try to get a successful reply to the PING command,
     # otherwise the next node is tried.
     def get_random_connection
+        e = ""
         @startup_nodes.each{|n|
             begin
                 r = Redis.new(:host => n[:host], :port => n[:port])
                 return r if r.ping == "PONG"
-            rescue
+            rescue => e
                 # Just try with the next node.
             end
         }
-        raise "Can't reach a single startup node."
+        raise "Can't reach a single startup node. #{e}"
     end
 
     # Given a slot return the link (Redis instance) to the mapped node.
@@ -150,6 +151,7 @@ class RedisCluster
             rescue => e
                 errv = e.to_s.split
                 if errv[0] == "MOVED" || errv[0] == "ASK"
+                    puts :moved
                     asking = true if errv[0] == "ASK"
                     newslot = errv[1].to_i
                     node_ip,node_port = errv[2].split(":")
@@ -179,7 +181,7 @@ startup_nodes = [
 ]
 rc = RedisCluster.new(startup_nodes,2)
 rc.flush_slots_cache
-(0..10000).each{|x|
+(0..10000000).each{|x|
     rc.set("foo#{x}",x)
     puts rc.get("foo#{x}")
 }
