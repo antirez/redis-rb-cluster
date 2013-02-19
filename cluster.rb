@@ -121,12 +121,44 @@ class RedisCluster
     end
 
     # Dispatch commands.
+    def send_cluster_command(argv)
+        ttl = 32; # Max number of redirections
+        e = ""
+        asking = false
+        while ttl > 0
+            ttl -= 1
+            key = get_key_from_command(argv)
+            raise "No way to dispatch this command to Redis Cluster." if !key
+            slot = keyslot(key)
+            r = get_connection_by_slot(slot)
+            begin
+                # TODO: use pipelining to send asking and save a rtt.
+                r.asking if asking
+                asking = false
+                return r.send(argv[0].to_sym,*argv[1..-1])
+            rescue => e
+                errv = e.to_s.split
+                if errv[0] == "MOVED" || errv[0] == "ASK"
+                    asking = true if errv[0] == "ASK"
+                    newslot = errv[1].to_i
+                    node_ip,node_port = errv[2].split(":")
+                    @slots[newslot] = {:host => node_ip,
+                                       :port => node_port.to_i}
+                else
+                    raise e
+                end
+            end
+        end
+        raise "Too many Cluster redirections? (last error: #{e})"
+    end
+
+    # Currently we handle all the commands using method_missing for
+    # simplicity. For a Cluster client actually it will be better to have
+    # every single command as a method with the right arity and possibly
+    # additional checks (example: RPOPLPUSH with same src/dst key, SORT
+    # without GET or BY, and so forth).
     def method_missing(*argv)
-        key = get_key_from_command(argv)
-        raise "No way to dispatch this command to Redis Cluster." if !key
-        slot = keyslot(key)
-        r = get_connection_by_slot(slot)
-        r.send(argv[0].to_sym,*argv[1..-1])
+        send_cluster_command(argv)
     end
 end
 
@@ -135,5 +167,6 @@ startup_nodes = [
     {:host => "127.0.0.1", :port => 6380}
 ]
 rc = RedisCluster.new(startup_nodes,2)
+rc.flush_slots_cache
 rc.set("foo","bar")
 puts rc.get("foo")
