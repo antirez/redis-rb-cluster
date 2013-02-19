@@ -6,10 +6,11 @@ class RedisCluster
 
     RedisClusterHashSlots = 16384
 
-    def initialize(startup_nodes,connections)
+    def initialize(startup_nodes,connections,opt={})
         @startup_nodes = startup_nodes
         @max_connections = connections
         @connections = {}
+        @opt = opt
         initialize_slots_cache
     end
 
@@ -49,6 +50,12 @@ class RedisCluster
             # Exit the loop as long as the first node replies
             break
         }
+    end
+
+    # Flush the cache, mostly useful for debugging when we want to force
+    # redirection.
+    def flush_slots_cache
+        @slots = {}
     end
 
     # Return the hash slot from the key.
