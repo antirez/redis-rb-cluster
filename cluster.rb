@@ -69,24 +69,46 @@ class RedisCluster
         end
     end
 
+    # Return a link to a random node, or raise an error if no node can be
+    # contacted. This function is only called when we can't reach the node
+    # associated with a given hash slot, or when we don't know the right
+    # mapping.
+    #
+    # The function will try to get a successful reply to the PING command,
+    # otherwise the next node is tried.
+    def get_random_connection
+        @startup_nodes.each{|n|
+            begin
+                r = Redis.new(:host => n[:host], :port => n[:port])
+                return r if r.ping == "PONG"
+            rescue
+                # Just try with the next node.
+            end
+        }
+        raise "Can't reach a single startup node."
+    end
+
     # Given a slot return the link (Redis instance) to the mapped node.
     # Make sure to create a connection with the node if we don't have
     # one.
     #
-    # TODO: Return a link to a random node if we can't connect to the
-    # specified instance, so that if the node is failing we'll be
-    # redirected.
-    #
     # TODO: Kill not recently used connections if we reached the max
     # number of connections but need to create a new one.
-    #
-    # TODO: Return a link to a random node if we don't have the slot
-    # to node mapping.
     def get_connection_by_slot(slot)
         node = @slots[slot]
+        # If we don't know what the mapping is, return a random node.
+        return get_random_connection if !node
         if not @connections[node[:name]]
-            @connections[node[:name]] = Redis.new(:host => node[:host],
-                                                 :port => node[:port])
+            begin
+                @connections[node[:name]] = Redis.new(:host => node[:host],
+                                                     :port => node[:port])
+            rescue
+                # This will probably never happen with recent redis-rb
+                # versions because the connection is enstablished in a lazy
+                # way only when a command is called. However it is wise to
+                # handle an instance creation error of some kind.
+                return get_random_connection
+            end
         end
         @connections[node[:name]]
     end
