@@ -123,7 +123,7 @@ class RedisCluster
         while @connections.length >= @max_connections
             @connections.each{|n,r|
                 @connections.delete(n)
-                # TODO: close 'r' when redis-rb will implement it.
+                begin r.quit end
                 break
             }
         end
@@ -148,7 +148,7 @@ class RedisCluster
                     @connections[n[:name]] = r
                     return r
                 else
-                    # TODO: close 'r' ASAP when it will be possible.
+                    begin r.quit end
                 end
             rescue => e
                 # Just try with the next node.
