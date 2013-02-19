@@ -10,14 +10,14 @@ class RedisCluster
         @startup_nodes = startup_nodes
         @max_connections = connections
         @connections = {}
-        initialize_slots
+        initialize_slots_cache
     end
 
     # Contact the startup nodes and try to fetch the hash slots -> instances
     # map in order to initialize the @slots hash.
     #
     # TODO: Use new nodes to populate the startup nodes array.
-    def initialize_slots
+    def initialize_slots_cache
         @startup_nodes.each{|n|
             begin
                 @slots = {}
