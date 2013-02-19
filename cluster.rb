@@ -16,35 +16,36 @@ class RedisCluster
     # Contact the startup nodes and try to fetch the hash slots -> instances
     # map in order to initialize the @slots hash.
     #
-    # TODO:
-    #
-    # 1) Trap errors inside the loop in order to try with the next
-    #    starup node if the previous failed.
-    # 2) Use new nodes to populate the startup nodes array.
+    # TODO: Use new nodes to populate the startup nodes array.
     def initialize_slots
         @startup_nodes.each{|n|
-            @slots = {}
-            @nodes = []
+            begin
+                @slots = {}
+                @nodes = []
 
-            r = Redis.new(:host => n[:host], :port => n[:port])
-            r.cluster("nodes").each_line{|l|
-                fields = l.split(" ")
-                addr = fields[1]
-                slots = fields[7..-1].join(",")
-                addr = n[:host]+":"+n[:port].to_s if addr == ":0"
-                addr_ip,addr_port = addr.split(":")
-                addr_port = addr_port.to_i
-                addr = {:host => addr_ip, :port => addr_port, :name => addr}
-                @nodes << addr
-                slots.split(",").each{|range|
-                    last = nil
-                    first,last = range.split("-")
-                    last = first if !last
-                    ((first.to_i)..(last.to_i)).each{|slot|
-                        @slots[slot] = addr
+                r = Redis.new(:host => n[:host], :port => n[:port])
+                r.cluster("nodes").each_line{|l|
+                    fields = l.split(" ")
+                    addr = fields[1]
+                    slots = fields[7..-1].join(",")
+                    addr = n[:host]+":"+n[:port].to_s if addr == ":0"
+                    addr_ip,addr_port = addr.split(":")
+                    addr_port = addr_port.to_i
+                    addr = {:host => addr_ip, :port => addr_port, :name => addr}
+                    @nodes << addr
+                    slots.split(",").each{|range|
+                        last = nil
+                        first,last = range.split("-")
+                        last = first if !last
+                        ((first.to_i)..(last.to_i)).each{|slot|
+                            @slots[slot] = addr
+                        }
                     }
                 }
-            }
+            rescue
+                # Try with the next node on error.
+                next
+            end
             # Exit the loop as long as the first node replies
             break
         }
@@ -78,6 +79,9 @@ class RedisCluster
     #
     # TODO: Kill not recently used connections if we reached the max
     # number of connections but need to create a new one.
+    #
+    # TODO: Return a link to a random node if we don't have the slot
+    # to node mapping.
     def get_connection_by_slot(slot)
         node = @slots[slot]
         if not @connections[node[:name]]
@@ -97,6 +101,10 @@ class RedisCluster
     end
 end
 
-rc = RedisCluster.new([{:host => "127.0.0.1", :port => 6379}],2)
+startup_nodes = [
+    {:host => "127.0.0.1", :port => 6379},
+    {:host => "127.0.0.1", :port => 6380}
+]
+rc = RedisCluster.new(startup_nodes,2)
 rc.set("foo","bar")
 puts rc.get("foo")
