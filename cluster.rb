@@ -106,6 +106,7 @@ class RedisCluster
         node = @slots[slot]
         # If we don't know what the mapping is, return a random node.
         return get_random_connection if !node
+        node[:name] = "#{node[:host]}:#{node[:port]}" if not node[:name]
         if not @connections[node[:name]]
             begin
                 @connections[node[:name]] = Redis.new(:host => node[:host],
@@ -178,5 +179,7 @@ startup_nodes = [
 ]
 rc = RedisCluster.new(startup_nodes,2)
 rc.flush_slots_cache
-rc.set("foo","bar")
-puts rc.get("foo")
+(0..10000).each{|x|
+    rc.set("foo#{x}",x)
+    puts rc.get("foo#{x}")
+}
