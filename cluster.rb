@@ -64,6 +64,7 @@ class RedisCluster
                     addr = {:host => addr_ip, :port => addr_port, :name => addr}
                     @nodes << addr
                     slots.split(",").each{|range|
+                        next if range[0..0] == '['
                         last = nil
                         first,last = range.split("-")
                         last = first if !last
@@ -87,7 +88,7 @@ class RedisCluster
     def populate_startup_nodes
         # Make sure every node has already a name, so that later the
         # Array uniq! method will work reliably.
-        @startup_nodes.each{|n| set_node_name n}
+        @startup_nodes.each{|n| set_node_name! n}
         @nodes.each{|n| @startup_nodes << n}
         @startup_nodes.uniq!
     end
