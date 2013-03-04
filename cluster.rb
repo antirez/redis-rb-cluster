@@ -125,7 +125,7 @@ class RedisCluster
             @connections.each{|n,r|
                 @connections.delete(n)
                 begin
-                    r.quit
+                    r.client.disconnect
                 rescue
                 end
                 break
@@ -152,7 +152,7 @@ class RedisCluster
                     @connections[n[:name]] = r
                     return r
                 else
-                    r.quit
+                    r.client.disconnect
                 end
             rescue => e
                 # Just try with the next node.
