@@ -124,7 +124,10 @@ class RedisCluster
         while @connections.length >= @max_connections
             @connections.each{|n,r|
                 @connections.delete(n)
-                begin r.quit end
+                begin
+                    r.quit
+                rescue
+                end
                 break
             }
         end
