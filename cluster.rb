@@ -149,7 +149,7 @@ class RedisCluster
                     @connections[n[:name]] = r
                     return r
                 else
-                    begin r.quit end
+                    r.quit
                 end
             rescue => e
                 # Just try with the next node.
