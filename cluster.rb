@@ -104,16 +104,25 @@ class RedisCluster
         RedisClusterCRC16.crc16(key) % RedisClusterHashSlots
     end
 
-    # Return the first key in the command, or nil if we don't know how to
-    # handle the specified command.
+    # Return the first key in the command arguments.
+    #
+    # Currently we just return argv[1], that is, the first argument
+    # after the command name.
+    #
+    # This is indeed the key for most commands, and when it is not true
+    # the cluster redirection will point us to the right node anyway.
+    #
+    # For commands we want to explicitly bad as they don't make sense
+    # in the context of cluster, nil is returned.
     def get_key_from_command(argv)
         case argv[0].to_s.downcase
-        when "set"
-            return argv[1]
-        when "get"
-            return argv[1]
-        else
+        when "info","multi","exec","slaveof","config","shutdown"
             return nil
+        else
+            # Unknown commands, and all the commands having the key
+            # as first argument are handled here:
+            # set, get, ...
+            return argv[1]
         end
     end
 
