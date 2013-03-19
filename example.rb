@@ -7,6 +7,10 @@ startup_nodes = [
 rc = RedisCluster.new(startup_nodes,32)
 # rc.flush_slots_cache
 (0..1000000000).each{|x|
-    rc.set("foo#{x}",x)
-    puts rc.get("foo#{x}")
+    begin
+        rc.set("foo#{x}",x)
+        puts rc.get("foo#{x}")
+    rescue
+        puts "error"
+    end
 }

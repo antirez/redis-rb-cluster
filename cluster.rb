@@ -33,6 +33,7 @@ class RedisCluster
         @max_connections = connections
         @connections = {}
         @opt = opt
+        @refresh_table_asap = false
         initialize_slots_cache
     end
 
@@ -74,6 +75,7 @@ class RedisCluster
                     }
                 }
                 populate_startup_nodes
+                @refresh_table_asap = false
             rescue
                 # Try with the next node on error.
                 next
@@ -196,6 +198,7 @@ class RedisCluster
 
     # Dispatch commands.
     def send_cluster_command(argv)
+        initialize_slots_cache if @refresh_table_asap
         ttl = RedisClusterRequestTTL; # Max number of redirections
         e = ""
         asking = false
@@ -222,7 +225,13 @@ class RedisCluster
             rescue => e
                 errv = e.to_s.split
                 if errv[0] == "MOVED" || errv[0] == "ASK"
-                    asking = true if errv[0] == "ASK"
+                    if errv[0] == "ASK"
+                        asking = true
+                    else
+                        # Serve replied with MOVED. It's better for us to
+                        # ask for CLUSTER NODES the next time.
+                        @refresh_table_asap = true
+                    end
                     newslot = errv[1].to_i
                     node_ip,node_port = errv[2].split(":")
                     @slots[newslot] = {:host => node_ip,
