@@ -153,7 +153,7 @@ class RedisCluster
     # otherwise the next node is tried.
     def get_random_connection
         e = ""
-        @startup_nodes.each{|n|
+        @startup_nodes.shuffle.each{|n|
             begin
                 set_node_name!(n)
                 return @connections[n[:name]] if @connections[n[:name]]
