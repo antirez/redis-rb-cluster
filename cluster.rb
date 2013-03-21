@@ -156,14 +156,24 @@ class RedisCluster
         @startup_nodes.shuffle.each{|n|
             begin
                 set_node_name!(n)
-                return @connections[n[:name]] if @connections[n[:name]]
-                r = Redis.new(:host => n[:host], :port => n[:port])
-                if r.ping == "PONG"
-                    close_existing_connection
-                    @connections[n[:name]] = r
-                    return r
+                conn = @connections[n[:name]]
+
+                if !conn
+                    # Connect the node if it is not connected
+                    conn = Redis.new(:host => n[:host], :port => n[:port])
+                    if conn.ping == "PONG"
+                        close_existing_connection
+                        @connections[n[:name]] = conn
+                        return conn
+                    else
+                        # If the connection is not good close it ASAP in order
+                        # to avoid waiting for the GC finalizer. File
+                        # descriptors are a rare resource.
+                        conn.client.disconnect
+                    end
                 else
-                    r.client.disconnect
+                    # The node was already connected, test the connection.
+                    return conn if conn.ping == "PONG"
                 end
             rescue => e
                 # Just try with the next node.
