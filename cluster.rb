@@ -37,6 +37,10 @@ class RedisCluster
         initialize_slots_cache
     end
 
+    def get_redis_link(host,port)
+        Redis.new(:host => host, :port => port)
+    end
+
     # Given a node (that is just a Ruby hash) give it a name just
     # concatenating the host and port. We use the node name as a key
     # to cache connections to that node.
@@ -54,7 +58,7 @@ class RedisCluster
                 @slots = {}
                 @nodes = []
 
-                r = Redis.new(:host => n[:host], :port => n[:port])
+                r = get_redis_link(n[:host],n[:port])
                 r.cluster("nodes").each_line{|l|
                     fields = l.split(" ")
                     addr = fields[1]
@@ -160,7 +164,7 @@ class RedisCluster
 
                 if !conn
                     # Connect the node if it is not connected
-                    conn = Redis.new(:host => n[:host], :port => n[:port])
+                    conn = get_redis_link(n[:host],n[:port])
                     if conn.ping == "PONG"
                         close_existing_connection
                         @connections[n[:name]] = conn
@@ -193,8 +197,8 @@ class RedisCluster
         if not @connections[node[:name]]
             begin
                 close_existing_connection
-                @connections[node[:name]] = Redis.new(:host => node[:host],
-                                                     :port => node[:port])
+                @connections[node[:name]] =
+                    get_redis_link(node[:host],node[:port])
             rescue
                 # This will probably never happen with recent redis-rb
                 # versions because the connection is enstablished in a lazy

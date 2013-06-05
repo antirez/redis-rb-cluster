@@ -13,4 +13,5 @@ rc = RedisCluster.new(startup_nodes,32)
     rescue
         puts "error"
     end
+    sleep 0.1
 }
