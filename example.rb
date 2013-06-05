@@ -4,7 +4,7 @@ startup_nodes = [
     {:host => "127.0.0.1", :port => 6379},
     {:host => "127.0.0.1", :port => 6380}
 ]
-rc = RedisCluster.new(startup_nodes,32)
+rc = RedisCluster.new(startup_nodes,32,:timeout => 0.1)
 # rc.flush_slots_cache
 (0..1000000000).each{|x|
     begin

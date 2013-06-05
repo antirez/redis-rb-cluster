@@ -27,6 +27,7 @@ class RedisCluster
 
     RedisClusterHashSlots = 16384
     RedisClusterRequestTTL = 16
+    RedisClusterDefaultTimeout = 1
 
     def initialize(startup_nodes,connections,opt={})
         @startup_nodes = startup_nodes
@@ -38,7 +39,8 @@ class RedisCluster
     end
 
     def get_redis_link(host,port)
-        Redis.new(:host => host, :port => port)
+        timeout = @opt[:timeout] or RedisClusterDefaultTimeout
+        Redis.new(:host => host, :port => port, :timeout => timeout)
     end
 
     # Given a node (that is just a Ruby hash) give it a name just
