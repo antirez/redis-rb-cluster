@@ -69,6 +69,7 @@ class ConsistencyTester
                 @reads += 1
             rescue => e
                 puts "Reading: #{e.to_s}"
+                @failed_reads += 1
             end
 
             # Write
@@ -77,6 +78,7 @@ class ConsistencyTester
                 @writes += 1
             rescue => e
                 puts "Writing: #{e.to_s}"
+                @failed_writes += 1
             end
 
             # Report
