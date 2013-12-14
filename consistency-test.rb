@@ -42,10 +42,11 @@ class ConsistencyTester
         @not_ack_writes = 0
         @delay = 0
         @cached = {} # We take our view of data stored in the DB.
+        @prefix = [Process.pid.to_s,Time.now.usec,@r.object_id,""].join("|")
     end
 
     def genkey
-        "key_"+rand(@keyspace).to_s
+        @prefix+"key_"+rand(@keyspace).to_s
     end
 
     def check_consistency(key,value)
