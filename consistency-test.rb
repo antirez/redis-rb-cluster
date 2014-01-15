@@ -96,10 +96,15 @@ class ConsistencyTester
     end
 end
 
-startup_nodes = [
-    {:host => "127.0.0.1", :port => 7000},
-    {:host => "127.0.0.1", :port => 7001}
-]
+if ARGV.length != 2
+    puts "Usage: consistency-test.rb <hostname> <port>"
+    exit 1
+else
+    startup_nodes = [
+        {:host => ARGV[0], :port => ARGV[1].to_i}
+    ]
+end
+
 rc = RedisCluster.new(startup_nodes,32,:timeout => 0.1)
 tester = ConsistencyTester.new(rc)
 tester.test
