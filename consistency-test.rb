@@ -43,6 +43,7 @@ class ConsistencyTester
         @delay = 0
         @cached = {} # We take our view of data stored in the DB.
         @prefix = [Process.pid.to_s,Time.now.usec,@r.object_id,""].join("|")
+        @errtime = {}
     end
 
     def genkey
@@ -59,6 +60,13 @@ class ConsistencyTester
         end
     end
 
+    def puterr(msg)
+        if !@errtime[msg] || Time.now.to_i != @errtime[msg]
+            puts msg
+        end
+        @errtime[msg] = Time.now.to_i
+    end
+
     def test
         last_report = Time.now.to_i
         while true
@@ -69,7 +77,7 @@ class ConsistencyTester
                 check_consistency(key,val.to_i)
                 @reads += 1
             rescue => e
-                puts "Reading: #{e.to_s}"
+                puterr "Reading: #{e.to_s}"
                 @failed_reads += 1
             end
 
@@ -78,7 +86,7 @@ class ConsistencyTester
                 @cached[key] = @r.incr(key).to_i
                 @writes += 1
             rescue => e
-                puts "Writing: #{e.to_s}"
+                puterr "Writing: #{e.to_s}"
                 @failed_writes += 1
             end
 
