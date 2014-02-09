@@ -109,6 +109,17 @@ class RedisCluster
 
     # Return the hash slot from the key.
     def keyslot(key)
+        # Only hash what is inside {...} if there is such a pattern in the key.
+        # Note that the specification requires the content that is between
+        # the first { and the first } after the first {. If we found {} without
+        # nothing in the middle, the whole key is hashed as usually.
+        s = key.index "{"
+        if s
+            e = key.index "}",s+1
+            if e && e != s+1
+                key = key[s+1..e-1]
+            end
+        end
         RedisClusterCRC16.crc16(key) % RedisClusterHashSlots
     end
 
