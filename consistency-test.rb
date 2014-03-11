@@ -33,7 +33,8 @@ require './cluster'
 class ConsistencyTester
     def initialize(redis)
         @r = redis
-        @keyspace = 1000
+        @working_set = 1000
+        @keyspace = 10000
         @writes = 0
         @reads = 0
         @failed_writes = 0
@@ -47,7 +48,9 @@ class ConsistencyTester
     end
 
     def genkey
-        @prefix+"key_"+rand(@keyspace).to_s
+        # Write more often to a small subset of keys
+        ks = rand() > 0.5 ? @keyspace : @working_set
+        @prefix+"key_"+rand(ks).to_s
     end
 
     def check_consistency(key,value)
