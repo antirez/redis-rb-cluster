@@ -61,23 +61,16 @@ class RedisCluster
                 @nodes = []
 
                 r = get_redis_link(n[:host],n[:port])
-                r.cluster("nodes").each_line{|l|
-                    fields = l.split(" ")
-                    addr = fields[1]
-                    slots = fields[7..-1].join(",")
-                    addr = n[:host]+":"+n[:port].to_s if addr == ":0"
-                    addr_ip,addr_port = addr.split(":")
-                    addr_port = addr_port.to_i
-                    addr = {:host => addr_ip, :port => addr_port, :name => addr}
-                    @nodes << addr
-                    slots.split(",").each{|range|
-                        next if range[0..0] == '['
-                        last = nil
-                        first,last = range.split("-")
-                        last = first if !last
-                        ((first.to_i)..(last.to_i)).each{|slot|
-                            @slots[slot] = addr
+                r.cluster("slots").each {|r|
+                    (r[0]..r[1]).each{|slot|
+                        ip,port = r[2]
+                        name = "#{ip}:#{port}"
+                        node = {
+                            :host => ip, :port => port,
+                            :name => name
                         }
+                        @nodes << node
+                        @slots[slot] = node
                     }
                 }
                 populate_startup_nodes
