@@ -254,8 +254,10 @@ class RedisCluster
                     end
                     newslot = errv[1].to_i
                     node_ip,node_port = errv[2].split(":")
-                    @slots[newslot] = {:host => node_ip,
-                                       :port => node_port.to_i}
+                    if !asking
+                        @slots[newslot] = {:host => node_ip,
+                                           :port => node_port.to_i}
+                    end
                 else
                     raise e
                 end
