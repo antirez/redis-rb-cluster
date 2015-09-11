@@ -7,10 +7,10 @@
 # distribute, sublicense, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be
 # included in all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -19,20 +19,25 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+require 'resolv'
+require 'set'
 require 'rubygems'
 require 'redis'
 require './crc16'
+require './lib/connection_table'
+require './lib/exceptions'
 
 class RedisCluster
 
   RedisClusterHashSlots = 16384
   RedisClusterRequestTTL = 16
   RedisClusterDefaultTimeout = 1
+  CmdsOnAllNodes = Set.new ["info"]
 
   def initialize(startup_nodes,connections,opt={})
     @startup_nodes = startup_nodes
     @max_connections = connections
-    @connections = {}
+    @connections = ConnectionTable.new(@max_connections)
     @opt = opt
     @refresh_table_asap = false
     initialize_slots_cache
@@ -48,16 +53,17 @@ class RedisCluster
   # to cache connections to that node.
   def set_node_name!(n)
     if !n[:name]
-      n[:name] = "#{n[:host]}:#{n[:port]}"
+      ip = Resolv.getaddress(n[:host])
+      n[:name] = "#{ip}:#{n[:port]}"
     end
   end
 
   # Contact the startup nodes and try to fetch the hash slots -> instances
   # map in order to initialize the @slots hash.
   def initialize_slots_cache
+    startup_nodes_reachable = false
     @startup_nodes.each{|n|
       begin
-        @slots = {}
         @nodes = []
 
         r = get_redis_link(n[:host],n[:port])
@@ -70,7 +76,7 @@ class RedisCluster
               :name => name
             }
             @nodes << node
-            @slots[slot] = node
+            @connections.slots[slot] = name
           }
         }
         populate_startup_nodes
@@ -80,8 +86,20 @@ class RedisCluster
         next
       end
       # Exit the loop as long as the first node replies
+      startup_nodes_reachable = true
       break
     }
+    if !startup_nodes_reachable
+      raise Exceptions::StartupNodesUnreachable
+    end
+  end
+
+  def add_missing_nodes
+    @nodes.each do |n|
+      n[:ip] = n[:host]
+      n[:host] = Resolv.getname n[:ip]
+      @startup_nodes << n
+    end
   end
 
   # Use @nodes to populate @startup_nodes, so that we have more chances
@@ -89,8 +107,12 @@ class RedisCluster
   def populate_startup_nodes
     # Make sure every node has already a name, so that later the
     # Array uniq! method will work reliably.
-    @startup_nodes.each{|n| set_node_name! n}
-    @nodes.each{|n| @startup_nodes << n}
+    @startup_nodes.each do |n|
+      set_node_name! n
+      n[:ip] = Resolv.getaddress n[:host]
+      n[:port] = n[:port].to_i
+    end
+    add_missing_nodes
     @startup_nodes.uniq!
   end
 
@@ -195,26 +217,26 @@ class RedisCluster
   # Given a slot return the link (Redis instance) to the mapped node.
   # Make sure to create a connection with the node if we don't have
   # one.
-  def get_connection_by_slot(slot)
-    node = @slots[slot]
-    # If we don't know what the mapping is, return a random node.
-    return get_random_connection if !node
-    set_node_name!(node)
-    if not @connections[node[:name]]
-      begin
-        close_existing_connection
-        @connections[node[:name]] =
-          get_redis_link(node[:host],node[:port])
-      rescue
-        # This will probably never happen with recent redis-rb
-        # versions because the connection is enstablished in a lazy
-        # way only when a command is called. However it is wise to
-        # handle an instance creation error of some kind.
-        return get_random_connection
-      end
-    end
-    @connections[node[:name]]
-  end
+  # def get_connection_by_slot(slot)
+  #   node = @slots[slot]
+  #   # If we don't know what the mapping is, return a random node.
+  #   return get_random_connection if !node
+  #   set_node_name!(node)
+  #   if not @connections[node[:name]]
+  #     begin
+  #       close_existing_connection
+  #       @connections[node[:name]] =
+  #         get_redis_link(node[:host],node[:port])
+  #     rescue
+  #       # This will probably never happen with recent redis-rb
+  #       # versions because the connection is enstablished in a lazy
+  #       # way only when a command is called. However it is wise to
+  #       # handle an instance creation error of some kind.
+  #       return get_random_connection
+  #     end
+  #   end
+  #   @connections[node[:name]]
+  # end
 
   # Dispatch commands.
   def send_cluster_command(argv)
@@ -229,10 +251,10 @@ class RedisCluster
       raise "No way to dispatch this command to Redis Cluster." if !key
       slot = keyslot(key)
       if try_random_node
-        r = get_random_connection
+        r = @connections.get_random_connection
         try_random_node = false
       else
-        r = get_connection_by_slot(slot)
+        r = @connections.get_connection_by_slot(slot)
       end
       begin
         # TODO: use pipelining to send asking and save a rtt.
@@ -253,10 +275,9 @@ class RedisCluster
             @refresh_table_asap = true
           end
           newslot = errv[1].to_i
-          node_ip,node_port = errv[2].split(":")
+          node_name = errv[2]
           if !asking
-            @slots[newslot] = {:host => node_ip,
-                       :port => node_port.to_i}
+            @connections.slots[newslot] = node_name
           end
         else
           raise e
@@ -271,8 +292,54 @@ class RedisCluster
   # every single command as a method with the right arity and possibly
   # additional checks (example: RPOPLPUSH with same src/dst key, SORT
   # without GET or BY, and so forth).
-  def method_missing(*argv)
-    send_cluster_command(argv)
-  end
-end
+  # def method_missing(*argv)
+  #   send_cluster_command(argv)
+  # end
 
+  def execute_cmd_on_all_nodes(cmd, *argv)
+    ret = {}
+    @startup_nodes.each do |n|
+      node_name = n[:name]
+      r = @connections.get_connection_by_node(node_name)
+      ret[node_name] = r.public_send(cmd, *argv)
+    end
+    ret
+  end
+
+  def send_command(cmd, *argv)
+    if CmdsOnAllNodes.member? cmd
+      return execute_cmd_on_all_nodes(cmd, *argv)
+    end
+    send_cluster_command([cmd] + argv)
+  end
+
+  def info(*argv)
+    send_command(:info, *argv)
+  end
+
+  def get(*argv)
+    send_command(:get, *argv)
+  end
+
+  # list commands
+  def set(*argv)
+    send_command(:set,  *argv)
+  end
+
+  def blpop(*argv)
+    send_command(:blpop, *argv)
+  end
+
+  def brpop(*argv)
+    send_command(:brpop, *argv)
+  end
+
+  def lpush(*argv)
+    send_command(:lpush, *argv)
+  end
+
+  def rpush(*argv)
+    send_command(:rpush, *argv)
+  end
+
+ end
