@@ -1,0 +1,12 @@
+---
+web:
+  build: .
+  ports:
+    - "6022:22"
+  volumes:
+    - .:/code
+  links:
+    - redis
+
+redis:
+  build: ./test
