@@ -32,7 +32,7 @@ class RedisCluster
   RedisClusterHashSlots = 16384
   RedisClusterRequestTTL = 16
   RedisClusterDefaultTimeout = 1
-  CmdsOnAllNodes = Set.new ["info"]
+  CmdsOnAllNodes = Set.new [:info, :flushdb]
 
   def initialize(startup_nodes,connections,opt={})
     @startup_nodes = startup_nodes
@@ -317,15 +317,20 @@ class RedisCluster
     send_command(:info, *argv)
   end
 
+  def flushdb
+    send_command(:flushdb)
+  end
+
   def get(*argv)
     send_command(:get, *argv)
   end
 
-  # list commands
+
   def set(*argv)
     send_command(:set,  *argv)
   end
 
+  # list commands
   def blpop(*argv)
     send_command(:blpop, *argv)
   end
@@ -334,12 +339,64 @@ class RedisCluster
     send_command(:brpop, *argv)
   end
 
+  def brpoplpush(*argv)
+    send_command(:brpoplpush, *argv)
+  end
+
+  def lindex(*argv)
+    send_command(:lindex, *argv)
+  end
+
+  def linsert(*argv)
+    send_command(:linsert, *argv)
+  end
+
+  def llen(*argv)
+    send_command(:llen, *argv)
+  end
+
+  def lpop(*argv)
+    send_command(:lpop, *argv)
+  end
+
   def lpush(*argv)
     send_command(:lpush, *argv)
+  end
+
+  def lpushx(*argv)
+    send_command(:lpushx, *argv)
+  end
+
+  def lrange(*argv)
+    send_command(:lrange, *argv)
+  end
+
+  def lrem(*argv)
+    send_command(:lrem, *argv)
+  end
+
+  def lset(*argv)
+    send_command(:lset, *argv)
+  end
+
+  def ltrim(*argv)
+    send_command(:ltrim, *argv)
+  end
+
+  def rpop(*argv)
+    send_command(:rpop, *argv)
+  end
+
+  def rpoplpush(*argv)
+    send_command(:rpoplpush, *argv)
   end
 
   def rpush(*argv)
     send_command(:rpush, *argv)
   end
 
- end
+  def rpushx(*argv)
+    send_command(:rpushx, *argv)
+  end
+
+end
