@@ -152,6 +152,8 @@ class RedisCluster
     case argv[0].to_s.downcase
     when "info","multi","exec","slaveof","config","shutdown"
       return nil
+    when "bitop"
+      return argv[2]
     else
       # Unknown commands, and all the commands having the key
       # as first argument are handled here:
@@ -342,8 +344,8 @@ class RedisCluster
   end
 
   def bitop(operation, dest_key, *keys)
-    _check_keys_on_same_slot([dest_keys] + keys)
-    send_cluster_command([:bitop, operation, dest_key] + keys)
+    _check_keys_on_same_slot([dest_key] + keys)
+    send_cluster_command([:bitop, operation, dest_key, *keys])
   end
 
   def bitpos(key, bit, start = 0, stop = -1)
