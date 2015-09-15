@@ -321,13 +321,87 @@ class RedisCluster
     send_command(:flushdb)
   end
 
-  def get(*argv)
-    send_command(:get, *argv)
+  # string commands
+  def append(key, value)
+    send_cluster_command([:append, key, value])
   end
 
+  def bitcount(key, start = 0, stop = -1)
+    send_cluster_command([:bitcount, key, start, stop])
+  end
 
-  def set(*argv)
-    send_command(:set,  *argv)
+  def bitop(operation, dest_key, *keys)
+    prev_slot = keyslot(dest_key)
+    keys.each do |k|
+      if keyslot(k) != prev_slot
+        raise Exceptions::CrossSlotsError
+      end
+    end
+    send_cluster_command([:bitop, operation, dest_key] + keys)
+  end
+
+  def bitpos(key, bit, start = 0, stop = -1)
+    send_cluster_command([:bitpos, key, bit, start, stop])
+  end
+
+  def decr(key)
+    send_cluster_command([:decr, key])
+  end
+
+  def decrby(key, decrement)
+    send_cluster_command([:decrby, key, decrement])
+  end
+
+  def get(key)
+    send_cluster_command([:get, key])
+  end
+
+  def getbit(key, offset)
+    send_cluster_command([:getbit, key, offset])
+  end
+
+  def getrange(key, start, stop)
+    send_cluster_command([:getrange, key, start, stop])
+  end
+
+  def incr(key)
+    send_cluster_command([:incr, key])
+  end
+
+  def incrby(key, increment)
+    send_cluster_command([:incrby, key, increment])
+  end
+
+  def incrbyfloat(key, increment)
+    send_cluster_command([:incrbyfloat, key, increment])
+  end
+
+  def psetex(key, millisec, value)
+    send_cluster_command([:psetex, key, millisec, value])
+  end
+
+  def set(key, value)
+    send_cluster_command([:set, key, value])
+  end
+
+  def setbit(key, offset, value)
+    send_cluster_command([:setbit, key, offset, value])
+  end
+
+  def setex(key, seconds, value)
+    send_cluster_command([:setex, key, seconds, value])
+  end
+
+  def setnx(key, value)
+    send_cluster_command([:setnx, key, value])
+  end
+
+  def setrange(key, offset, value)
+    send_cluster_command([:setrange, key, offset, value])
+  end
+
+  def strlen(key)
+    send_cluster_command([:strlen, key])
   end
 
   # list commands
