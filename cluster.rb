@@ -463,4 +463,90 @@ class RedisCluster
     send_cluster_command([:sscan, key, cursor, options])
   end
 
+  # sorted set commands
+  def zadd(key, *argv)
+    send_cluster_command([:zadd, key, *argv])
+  end
+
+  def zcard(key)
+    send_cluster_command([:zcard, key])
+  end
+
+  def zcount(key, min, max)
+    send_cluster_command([:zcount, key, min, max])
+  end
+
+  def zincrby(key, increment, member)
+    send_cluster_command([:zincrby, key, increment, member])
+  end
+
+  def zinterstore(destination, keys, options = {})
+    _check_keys_in_same_slot([destination, *keys])
+    send_cluster_command([:zinterstore, destination, keys, options])
+  end
+
+  #def zlexcount(key, min, max)
+    # redis-rb hasn't implement it yet
+    #send_cluster_command([:zlexcount, key, min, max])
+  #end
+
+  def zrange(key, start, stop, options = {})
+    send_cluster_command([:zrange, key, start, stop, options])
+  end
+
+  def zrangebylex(key, min, max, options = {})
+    send_cluster_command([:zrangebylex, key, min, max, options])
+  end
+
+  def zrevrangebylex(key, max, min, options = {})
+    send_cluster_command([:zrevrangebylex, key, max, min, options])
+  end
+
+  def zrangebyscore(key, min, max, options = {})
+    send_cluster_command([:zrangebyscore, key, min, max, options])
+  end
+
+  def zrank(key, member)
+    send_cluster_command([:zrank, key, member])
+  end
+
+  def zrem(key, member)
+    send_cluster_command([:zrem, key, member])
+  end
+
+  # def zremrangebylex(key, min, max)
+  # end
+
+  def zremrangebyrank(key, start, stop)
+    send_cluster_command([:zremrangebyrank, key, start, stop])
+  end
+
+  def zremrangebyscore(key, min, max)
+    send_cluster_command([:zremrangebystore, key, start, stop])
+  end
+
+  def zrevrange(key, start, stop, options = {})
+    send_cluster_command([:zrevrange, key, start, stop, options])
+  end
+
+  def zrevrangebyscore(key, max, min, options = {})
+    send_cluster_command([:zrevrangebyscore, key, max, min, options])
+  end
+
+  def zrevrank(key, member)
+    send_cluster_command([:zrevrank, key, member])
+  end
+
+  def zscore(key, member)
+    send_cluster_command([:zscore, key, member])
+  end
+
+  def zunionstore(destination, keys, options = {})
+    _check_keys_in_same_slot([destination, *keys])
+    send_cluster_command([:zunionstore, destination, keys, options])
+  end
+
+  def zscan(key, cursor, options = {})
+    send_cluster_command([:zscan, key, cursor, options])
+  end
 end
