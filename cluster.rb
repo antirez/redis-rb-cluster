@@ -223,7 +223,7 @@ class RedisCluster
     ret
   end
 
-  def _check_keys_on_same_slot(keys)
+  def _check_keys_in_same_slot(keys)
     prev_slot = nil
     keys.each do |k|
       slot = keyslot(k)
@@ -252,7 +252,7 @@ class RedisCluster
   end
 
   def bitop(operation, dest_key, *keys)
-    _check_keys_on_same_slot([dest_key] + keys)
+    _check_keys_in_same_slot([dest_key] + keys)
     send_cluster_command([:bitop, operation, dest_key, *keys])
   end
 
@@ -323,18 +323,18 @@ class RedisCluster
   # list commands
   def blpop(*argv)
     keys = argv[0..-2]
-    _check_keys_on_same_slot(keys)
+    _check_keys_in_same_slot(keys)
     send_cluster_command([:blpop, *argv])
   end
 
   def brpop(*argv)
     keys = argv[0..-2]
-    _check_keys_on_same_slot(keys)
+    _check_keys_in_same_slot(keys)
     send_cluster_command([:brpop, *argv])
   end
 
   def brpoplpush(source, destination, options = {})
-    _check_keys_on_same_slot([source, destination])
+    _check_keys_in_same_slot([source, destination])
     send_cluster_command([:brpoplpush, source, destination, options])
   end
 
@@ -383,7 +383,7 @@ class RedisCluster
   end
 
   def rpoplpush(source, destination)
-    _check_keys_on_same_slot([source, destination])
+    _check_keys_in_same_slot([source, destination])
     send_cluster_command([:rpoplpush, source, destination])
   end
 
@@ -405,22 +405,22 @@ class RedisCluster
   end
 
   def sdiff(*keys)
-    _check_keys_on_same_slot(keys)
+    _check_keys_in_same_slot(keys)
     send_cluster_command([:sdiff, *keys])
   end
 
   def sdiffstore(destination, *keys)
-    _check_keys_on_same_slot([destination, *keys])
+    _check_keys_in_same_slot([destination, *keys])
     send_cluster_command([:sdiffstore, destination, *keys])
   end
 
   def sinter(*keys)
-    _check_keys_on_same_slot(keys)
+    _check_keys_in_same_slot(keys)
     send_cluster_command([:sinter, *keys])
   end
 
   def sinterstore(destination, *keys)
-    _check_keys_on_same_slot([destination, *keys])
+    _check_keys_in_same_slot([destination, *keys])
     send_cluster_command([:sinterstore, destination, *keys])
   end
 
@@ -433,7 +433,7 @@ class RedisCluster
   end
 
   def smove(source, destination, member)
-    _check_keys_on_same_slot([source, destination])
+    _check_keys_in_same_slot([source, destination])
     send_cluster_command([:smove, source, destination, member])
   end
 
@@ -450,12 +450,12 @@ class RedisCluster
   end
 
   def sunion(*keys)
-    _check_keys_on_same_slot(keys)
+    _check_keys_in_same_slot(keys)
     send_cluster_command([:sunion, *keys])
   end
 
   def sunionstore(destination, *keys)
-    _check_keys_on_same_slot([destination, *keys])
+    _check_keys_in_same_slot([destination, *keys])
     send_cluster_command([:sunionstore, destination, *keys])
   end
 
