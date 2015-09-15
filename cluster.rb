@@ -395,4 +395,72 @@ class RedisCluster
     send_cluster_command([:rpushx, key, value])
   end
 
+  # set commands
+  def sadd(key, member)
+    send_cluster_command([:sadd, key, member])
+  end
+
+  def scard(key)
+    send_cluster_command([:scard, key])
+  end
+
+  def sdiff(*keys)
+    _check_keys_on_same_slot(keys)
+    send_cluster_command([:sdiff, *keys])
+  end
+
+  def sdiffstore(destination, *keys)
+    _check_keys_on_same_slot([destination, *keys])
+    send_cluster_command([:sdiffstore, destination, *keys])
+  end
+
+  def sinter(*keys)
+    _check_keys_on_same_slot(keys)
+    send_cluster_command([:sinter, *keys])
+  end
+
+  def sinterstore(destination, *keys)
+    _check_keys_on_same_slot([destination, *keys])
+    send_cluster_command([:sinterstore, destination, *keys])
+  end
+
+  def sismember(key, member)
+    send_cluster_command([:sismember, key, member])
+  end
+
+  def smembers(key)
+    send_cluster_command([:smembers, key])
+  end
+
+  def smove(source, destination, member)
+    _check_keys_on_same_slot([source, destination])
+    send_cluster_command([:smove, source, destination, member])
+  end
+
+  def spop(key)
+    send_cluster_command([:spop, key])
+  end
+
+  def srandmember(key, count = nil)
+    send_cluster_command([:srandmember, key, count])
+  end
+
+  def srem(key, member)
+    send_cluster_command([:srem, key, member])
+  end
+
+  def sunion(*keys)
+    _check_keys_on_same_slot(keys)
+    send_cluster_command([:sunion, *keys])
+  end
+
+  def sunionstore(destination, *keys)
+    _check_keys_on_same_slot([destination, *keys])
+    send_cluster_command([:sunionstore, destination, *keys])
+  end
+
+  def sscan(key, cursor, options = {})
+    send_cluster_command([:sscan, key, cursor, options])
+  end
+
 end
