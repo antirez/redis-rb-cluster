@@ -1,29 +1,10 @@
 require './cluster'
 require './lib/exceptions'
-require './tests/utils'
+require './tests/test_base'
 require 'test/unit'
 
 
-class TestStrCmds < Test::Unit::TestCase
-
-  KEY = 'asdf'
-  OK = 'OK'
-
-  def setup
-    host = 'redis'
-    port1 = '7002'
-    port2 = '7003'
-
-    startup_nodes = [
-      {:host => host, :port => port1},
-      {:host => host, :port => port2},
-    ]
-    @rc = RedisCluster.new(startup_nodes, 2)
-  end
-
-  def teardown
-    @rc.flushdb
-  end
+class TestStrCmds < TestBase
 
   def test_append
     @rc.set(KEY, 'a')
