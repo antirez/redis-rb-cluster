@@ -1,5 +1,7 @@
 require './cluster'
+require './lib/exceptions'
 require 'test/unit'
+require './tests/utils'
 
 class TestListCmds < Test::Unit::TestCase
 
@@ -45,8 +47,16 @@ class TestListCmds < Test::Unit::TestCase
     assert_equal(['asdf', 'b'], @rc.brpop(KEY))
   end
 
+  def test_brpoplpush_with_raise
+    key1, key2 = get_keys_in_diff_slot
+    assert_raise(Exceptions::CrossSlotsError) { @rc.brpoplpush(key1, key2, 1) }
+  end
+
   def test_brpoplpush
-    # no cross key in cluster first
+    key1, key2 = get_keys_in_same_slot
+    @rc.lpush(key1, 'a')
+    @rc.lpush(key2, 'b')
+    assert_equal('a', @rc.brpoplpush(key1, key2, 1))
   end
 
   def test_lindex
@@ -107,8 +117,16 @@ class TestListCmds < Test::Unit::TestCase
     assert_equal('b', @rc.rpop(KEY))
   end
 
+  def test_rpoplpush_with_raise
+    key1, key2 = get_keys_in_diff_slot
+    assert_raise(Exceptions::CrossSlotsError) { @rc.rpoplpush(key1, key2) }
+  end
+
   def test_rpoplpush
-    # no cross key in cluster first
+    key1, key2 = get_keys_in_same_slot
+    @rc.lpush(key1, 'a')
+    @rc.lpush(key2, 'b')
+    assert_equal('a', @rc.rpoplpush(key1, key2))
   end
 
   def test_rpush

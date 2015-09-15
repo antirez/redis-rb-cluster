@@ -127,7 +127,7 @@ class RedisCluster
     # Only hash what is inside {...} if there is such a pattern in the key.
     # Note that the specification requires the content that is between
     # the first { and the first } after the first {. If we found {} without
-    # nothing in the middle, the whole key is hashed as usually.
+    # nothing In the middle, the whole key is hashed as usually.
     s = key.index "{"
     if s
       e = key.index "}",s+1
@@ -313,6 +313,17 @@ class RedisCluster
     send_cluster_command([cmd] + argv)
   end
 
+  def _check_keys_on_same_slot(keys)
+    prev_slot = nil
+    keys.each do |k|
+      slot = keyslot(k)
+      if prev_slot && prev_slot != keyslot(k)
+        raise raise Exceptions::CrossSlotsError
+      end
+      prev_slot = slot
+    end
+  end
+
   def info(*argv)
     send_command(:info, *argv)
   end
@@ -331,12 +342,7 @@ class RedisCluster
   end
 
   def bitop(operation, dest_key, *keys)
-    prev_slot = keyslot(dest_key)
-    keys.each do |k|
-      if keyslot(k) != prev_slot
-        raise Exceptions::CrossSlotsError
-      end
-    end
+    _check_keys_on_same_slot([dest_keys] + keys)
     send_cluster_command([:bitop, operation, dest_key] + keys)
   end
 
@@ -406,71 +412,77 @@ class RedisCluster
 
   # list commands
   def blpop(*argv)
-    send_command(:blpop, *argv)
+    keys = argv[0..-2]
+    _check_keys_on_same_slot(keys)
+    send_cluster_command([:blpop, *argv])
   end
 
   def brpop(*argv)
-    send_command(:brpop, *argv)
+    keys = argv[0..-2]
+    _check_keys_on_same_slot(keys)
+    send_cluster_command([:brpop, *argv])
   end
 
-  def brpoplpush(*argv)
-    send_command(:brpoplpush, *argv)
+  def brpoplpush(source, destination, options = {})
+    _check_keys_on_same_slot([source, destination])
+    send_cluster_command([:brpoplpush, source, destination, options])
   end
 
-  def lindex(*argv)
-    send_command(:lindex, *argv)
+  def lindex(key, index)
+    send_cluster_command([:lindex, key, index])
   end
 
-  def linsert(*argv)
-    send_command(:linsert, *argv)
+  def linsert(key, where, pivot, value)
+    send_cluster_command([:linsert, key, where, pivot, value])
   end
 
-  def llen(*argv)
-    send_command(:llen, *argv)
+  def llen(key)
+    send_cluster_command([:llen, key])
   end
 
-  def lpop(*argv)
-    send_command(:lpop, *argv)
+  def lpop(key)
+    send_cluster_command([:lpop, key])
   end
 
-  def lpush(*argv)
-    send_command(:lpush, *argv)
+  def lpush(key, value)
+    send_cluster_command([:lpush, key, value])
   end
 
-  def lpushx(*argv)
-    send_command(:lpushx, *argv)
+  def lpushx(key, value)
+    send_cluster_command([:lpushx, key, value])
   end
 
-  def lrange(*argv)
-    send_command(:lrange, *argv)
+  def lrange(key, start, stop)
+    send_cluster_command([:lrange, key, start, stop])
   end
 
-  def lrem(*argv)
-    send_command(:lrem, *argv)
+  def lrem(key, count, value)
+    send_cluster_command([:lrem, key, count, value])
   end
 
-  def lset(*argv)
-    send_command(:lset, *argv)
+  def lset(key, index, value)
+    send_cluster_command([:lset, key, index, value])
   end
 
-  def ltrim(*argv)
-    send_command(:ltrim, *argv)
+  def ltrim(key, start, stop)
+    send_cluster_command([:ltrim, key, start, stop])
   end
 
-  def rpop(*argv)
-    send_command(:rpop, *argv)
+  def rpop(key)
+    send_cluster_command([:rpop, key])
   end
 
-  def rpoplpush(*argv)
-    send_command(:rpoplpush, *argv)
+  def rpoplpush(source, destination)
+    _check_keys_on_same_slot([source, destination])
+    send_cluster_command([:rpoplpush, source, destination])
   end
 
-  def rpush(*argv)
-    send_command(:rpush, *argv)
+  def rpush(key, value)
+    send_cluster_command([:rpush, key, value])
   end
 
-  def rpushx(*argv)
-    send_command(:rpushx, *argv)
+  def rpushx(key, value)
+    send_cluster_command([:rpushx, key, value])
   end
 
 end
