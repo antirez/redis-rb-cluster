@@ -1,5 +1,6 @@
 require './cluster'
 require './lib/exceptions'
+require './tests/utils'
 require 'test/unit'
 
 
@@ -35,9 +36,15 @@ class TestStrCmds < Test::Unit::TestCase
   end
 
   def test_bitop_with_raise
-    @rc.set('key1', 'foobar')
-    @rc.set('key2', 'abcdef')
+    key1, key2 = get_keys_in_diff_slot
     assert_raise( Exceptions::CrossSlotsError) { @rc.bitop('and', 'key1', 'key2')}
+  end
+
+  def test_bitop
+    key1, key2 = get_keys_in_same_slot
+    @rc.set(key1, 'foobar')
+    @rc.set(key2, 'abcdef')
+    assert_equal(6, @rc.bitop('and', key1, key1, key2))
   end
 
   def test_bitpos
