@@ -32,7 +32,6 @@ class RedisCluster
   RedisClusterHashSlots = 16384
   RedisClusterRequestTTL = 16
   RedisClusterDefaultTimeout = 1
-  CmdsOnAllNodes = Set.new [:info, :flushdb]
 
   def initialize(startup_nodes,connections,opt={})
     @startup_nodes = startup_nodes
@@ -116,12 +115,6 @@ class RedisCluster
     @startup_nodes.uniq!
   end
 
-  # Flush the cache, mostly useful for debugging when we want to force
-  # redirection.
-  def flush_slots_cache
-    @slots = {}
-  end
-
   # Return the hash slot from the key.
   def keyslot(key)
     # Only hash what is inside {...} if there is such a pattern in the key.
@@ -161,84 +154,6 @@ class RedisCluster
       return argv[1]
     end
   end
-
-  # If the current number of connections is already the maximum number
-  # allowed, close a random connection. This should be called every time
-  # we cache a new connection in the @connections hash.
-  def close_existing_connection
-    while @connections.length >= @max_connections
-      @connections.each{|n,r|
-        @connections.delete(n)
-        begin
-          r.client.disconnect
-        rescue
-        end
-        break
-      }
-    end
-  end
-
-  # Return a link to a random node, or raise an error if no node can be
-  # contacted. This function is only called when we can't reach the node
-  # associated with a given hash slot, or when we don't know the right
-  # mapping.
-  #
-  # The function will try to get a successful reply to the PING command,
-  # otherwise the next node is tried.
-  def get_random_connection
-    e = ""
-    @startup_nodes.shuffle.each{|n|
-      begin
-        set_node_name!(n)
-        conn = @connections[n[:name]]
-
-        if !conn
-          # Connect the node if it is not connected
-          conn = get_redis_link(n[:host],n[:port])
-          if conn.ping == "PONG"
-            close_existing_connection
-            @connections[n[:name]] = conn
-            return conn
-          else
-            # If the connection is not good close it ASAP in order
-            # to avoid waiting for the GC finalizer. File
-            # descriptors are a rare resource.
-            conn.client.disconnect
-          end
-        else
-          # The node was already connected, test the connection.
-          return conn if conn.ping == "PONG"
-        end
-      rescue => e
-        # Just try with the next node.
-      end
-    }
-    raise "Can't reach a single startup node. #{e}"
-  end
-
-  # Given a slot return the link (Redis instance) to the mapped node.
-  # Make sure to create a connection with the node if we don't have
-  # one.
-  # def get_connection_by_slot(slot)
-  #   node = @slots[slot]
-  #   # If we don't know what the mapping is, return a random node.
-  #   return get_random_connection if !node
-  #   set_node_name!(node)
-  #   if not @connections[node[:name]]
-  #     begin
-  #       close_existing_connection
-  #       @connections[node[:name]] =
-  #         get_redis_link(node[:host],node[:port])
-  #     rescue
-  #       # This will probably never happen with recent redis-rb
-  #       # versions because the connection is enstablished in a lazy
-  #       # way only when a command is called. However it is wise to
-  #       # handle an instance creation error of some kind.
-  #       return get_random_connection
-  #     end
-  #   end
-  #   @connections[node[:name]]
-  # end
 
   # Dispatch commands.
   def send_cluster_command(argv)
@@ -308,13 +223,6 @@ class RedisCluster
     ret
   end
 
-  def send_command(cmd, *argv)
-    if CmdsOnAllNodes.member? cmd
-      return execute_cmd_on_all_nodes(cmd, *argv)
-    end
-    send_cluster_command([cmd] + argv)
-  end
-
   def _check_keys_on_same_slot(keys)
     prev_slot = nil
     keys.each do |k|
@@ -326,12 +234,12 @@ class RedisCluster
     end
   end
 
-  def info(*argv)
-    send_command(:info, *argv)
+  def info(cmd = nil)
+    execute_cmd_on_all_nodes(:info, cmd)
   end
 
   def flushdb
-    send_command(:flushdb)
+    execute_cmd_on_all_nodes(:flushdb)
   end
 
   # string commands
