@@ -204,14 +204,12 @@ class RedisCluster
     raise "Too many Cluster redirections? (last error: #{e})"
   end
 
-  # Currently we handle all the commands using method_missing for
-  # simplicity. For a Cluster client actually it will be better to have
-  # every single command as a method with the right arity and possibly
-  # additional checks (example: RPOPLPUSH with same src/dst key, SORT
-  # without GET or BY, and so forth).
-  # def method_missing(*argv)
-  #   send_cluster_command(argv)
-  # end
+  # Some commands are not implemented yet
+  # If someone tries to use them, a NotImplementedError is thrown
+  def method_missing(*argv)
+    cmd = argv[0].to_s
+    raise NotImplementedError, "#{cmd} command is not implemented now!"
+  end
 
   def execute_cmd_on_all_nodes(cmd, *argv)
     ret = {}
