@@ -5,6 +5,8 @@ web:
     - "6022:22"
   volumes:
     - .:/code
+  volumes_from:
+    - gems
   links:
     - redis
 
