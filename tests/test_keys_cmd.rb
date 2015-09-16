@@ -54,4 +54,8 @@ class TestKeysCmd < TestBase
     assert_equal(1000, @rc.pttl(KEY))
   end
 
+  def test_monitor
+    assert_raise(NotImplementedError) { @rc.monitor }
+  end
+
 end
