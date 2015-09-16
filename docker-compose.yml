@@ -9,4 +9,4 @@ web:
     - redis
 
 redis:
-  build: ./test
+  build: ./dev
