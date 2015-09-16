@@ -611,4 +611,51 @@ class RedisCluster
     send_cluster_command([:hscan, key, cursor, options])
   end
 
+  # keys command
+  def del(*keys)
+    total = 0
+    keys.each do |k|
+      total += send_cluster_command([:del, k])
+    end
+    total
+  end
+
+  def exists(key)
+    send_cluster_command([:exists, key])
+  end
+
+  def expire(key, seconds)
+    send_cluster_command([:expire, key, seconds])
+  end
+
+  def expireat(key, unix_time)
+    send_cluster_command([:expireat, key, unix_time])
+  end
+
+  def keys(pattern = "*")
+    # only for debugging purpose
+    ret = execute_cmd_on_all_nodes(:keys, pattern)
+    ret.values.flatten
+  end
+
+  def persist(key)
+    send_cluster_command([:persist, key])
+  end
+
+  def ttl(key)
+    send_cluster_command([:ttl, key])
+  end
+
+  def pexpire(key, milliseconds)
+    send_cluster_command([:pexpire, key, milliseconds])
+  end
+
+  def pexpireat(key, ms_unix_time)
+    send_cluster_command([:pexpireat, key, ms_unix_time])
+  end
+
+  def pttl(key)
+    send_cluster_command([:pttl, key])
+  end
+
 end
