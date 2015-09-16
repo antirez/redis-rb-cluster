@@ -12,3 +12,8 @@ web:
 
 redis:
   build: ./dev
+
+gems:
+  image: busybox
+  volumes:
+    - /gems
