@@ -31,10 +31,9 @@ class RedisCluster
   RedisClusterRequestTTL = 16
   RedisClusterDefaultTimeout = 1
 
-  def initialize(startup_nodes,connections,opt={})
+  def initialize(startup_nodes, max_connections, opt={})
     @startup_nodes = startup_nodes
-    @max_connections = connections
-    @connections = ConnectionTable.new(@max_connections)
+    @connections = ConnectionTable.new(max_connections)
     @opt = opt
     @refresh_table_asap = false
     initialize_slots_cache
