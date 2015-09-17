@@ -225,8 +225,8 @@ class RedisCluster
     prev_slot = nil
     keys.each do |k|
       slot = keyslot(k)
-      if prev_slot && prev_slot != keyslot(k)
-        raise raise Exceptions::CrossSlotsError
+      if prev_slot && prev_slot != slot
+        raise Exceptions::CrossSlotsError
       end
       prev_slot = slot
     end
