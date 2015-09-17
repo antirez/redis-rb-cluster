@@ -20,8 +20,6 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 require 'resolv'
-require 'set'
-require 'rubygems'
 require 'redis'
 require './crc16'
 require './lib/connection_table'
