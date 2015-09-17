@@ -51,13 +51,6 @@ class RedisCluster
     Redis.new(:host => host, :port => port, :timeout => timeout)
   end
 
-  # Given a node (that is just a Ruby hash) give it a name just
-  # concatenating the host and port. We use the node name as a key
-  # to cache connections to that node.
-  def set_node_name!(n)
-    n[:name] = "#{n[:host]}:#{n[:port]}"
-  end
-
   # Contact the startup nodes and try to fetch the hash slots -> instances
   # map in order to initialize the @slots hash.
   def initialize_slots_cache
@@ -74,7 +67,7 @@ class RedisCluster
             name = "#{host}:#{port}"
             node = {
               :host => host, :port => port,
-              :name => name
+              :name => name, :ip => ip
             }
             @nodes << node
             @connections.update_slot!(slot, name)
@@ -95,6 +88,16 @@ class RedisCluster
     end
   end
 
+  def clean_startup_nodes!(n)
+    n[:port] = n[:port].to_i
+    n[:ip] = Resolv.getaddress(n[:host])
+    n[:host] = Resolv.getname(n[:ip])
+  end
+
+  def set_node_name!(n)
+    n[:name] = "#{n[:host]}:#{n[:port]}"
+  end
+
   def add_missing_nodes
     @nodes.each do |n|
       @startup_nodes << n
@@ -106,9 +109,10 @@ class RedisCluster
   def populate_startup_nodes
     # Make sure every node has already a name, so that later the
     # Array uniq! method will work reliably.
+    # Also make sure we have the same host name given an ip address
     @startup_nodes.each do |n|
+      clean_startup_nodes! n
       set_node_name! n
-      n[:port] = n[:port].to_i
     end
     add_missing_nodes
     @startup_nodes.uniq!
