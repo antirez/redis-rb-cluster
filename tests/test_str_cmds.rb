@@ -1,4 +1,3 @@
-require './cluster'
 require './lib/exceptions'
 require './tests/test_base'
 require 'test/unit'
