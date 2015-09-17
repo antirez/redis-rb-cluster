@@ -42,6 +42,10 @@ class RedisCluster
     initialize_slots_cache
   end
 
+  def inspect
+    "#<#{self.class.name}: @connections=#{@connections.inspect}, @startup_nodes=#{@startup_nodes}>"
+  end
+
   def get_redis_link(host,port)
     timeout = @opt[:timeout] or RedisClusterDefaultTimeout
     Redis.new(:host => host, :port => port, :timeout => timeout)

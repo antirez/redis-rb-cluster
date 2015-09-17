@@ -15,6 +15,10 @@ class ConnectionTable
     @slots = {}
   end
 
+  def inspect
+   "#<#{self.class.name}: @table=#{@table}, @max_connections=#{@max_connections}>"
+  end
+
   def make_node_name(n)
     name = "#{n[:host]}:#{n[:port]}"
     n[:name] = name
