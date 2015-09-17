@@ -3,7 +3,6 @@ require 'redis'
 
 class ConnectionTable
 
-  attr :table, :slots
 
   def split_node(node)
     host, port = node.split(':')
@@ -59,6 +58,10 @@ class ConnectionTable
 
   def flush_slots_cache
     @slots = {}
+  end
+
+  def update_slot!(newslot, node_name)
+    @slots[newslot] = node_name
   end
 
   def reset(node)

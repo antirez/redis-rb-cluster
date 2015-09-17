@@ -73,7 +73,7 @@ class RedisCluster
               :name => name
             }
             @nodes << node
-            @connections.slots[slot] = name
+            @connections.update_slot!(slot, name)
           }
         }
         populate_startup_nodes
@@ -189,7 +189,7 @@ class RedisCluster
           newslot = errv[1].to_i
           node_name = errv[2]
           if !asking
-            @connections.slots[newslot] = node_name
+            @connections.update_slot!(newslot, node_name)
           end
         else
           raise e
