@@ -52,6 +52,7 @@ class RedisCluster
   # map in order to initialize the @slots hash.
   def initialize_slots_cache
     startup_nodes_reachable = false
+    dns_cache = {}
     @startup_nodes.each{|n|
       begin
         @nodes = []
@@ -60,7 +61,12 @@ class RedisCluster
         r.cluster("slots").each {|r|
           (r[0]..r[1]).each{|slot|
             ip,port = r[2]
-            host = Resolv.getname(ip)
+            host = dns_cache.fetch(ip) {
+              |missing_ip|
+              host = Resolv.getname(missing_ip)
+              dns_cache[ip] = host
+              host
+            }
             name = "#{host}:#{port}"
             node = {
               :host => host, :port => port,
