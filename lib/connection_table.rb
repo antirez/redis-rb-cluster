@@ -19,16 +19,6 @@ class ConnectionTable
    "#<#{self.class.name}: @table=#{@table}, @max_connections=#{@max_connections}>"
   end
 
-  def make_node_name(n)
-    name = "#{n[:host]}:#{n[:port]}"
-    n[:name] = name
-    name
-  end
-
-  def set_node_name!(n)
-    reset(make_node_name(n))
-  end
-
   def new_pool(node)
     host, port = split_node(node)
     ConnectionPool.new(size: @max_connections) { Redis.new(:host => host, :port => port)}
