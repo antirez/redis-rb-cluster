@@ -23,8 +23,8 @@ In order to create a new Redis Cluster instance use:
 ```
 require 'rediscluster'
 startup_nodes = [
-    {:host => "127.0.0.1", :port => 6379},
-    {:host => "127.0.0.1", :port => 6380}
+    {:host => "localhost", :port => 6379},
+    {:host => "localhost", :port => 6380}
 ]
 max_cached_connections = 2
 rc = RedisCluster.new(startup_nodes,max_cached_connections)
