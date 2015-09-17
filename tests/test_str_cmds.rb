@@ -1,5 +1,5 @@
-require './lib/exceptions'
-require './tests/test_base'
+require_relative '../lib/exceptions'
+require_relative 'test_base'
 require 'test/unit'
 
 

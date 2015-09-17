@@ -1,4 +1,4 @@
-require './rediscluster'
+require_relative '../rediscluster'
 require 'test/unit'
 
 

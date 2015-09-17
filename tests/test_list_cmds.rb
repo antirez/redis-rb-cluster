@@ -1,6 +1,7 @@
-require './lib/exceptions'
+require_relative '../lib/exceptions'
+require_relative 'test_base'
 require 'test/unit'
-require './tests/test_base'
+
 
 class TestListCmds < TestBase
 

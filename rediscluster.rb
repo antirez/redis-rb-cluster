@@ -21,9 +21,9 @@
 
 require 'resolv'
 require 'redis'
-require './crc16'
-require './lib/connection_table'
-require './lib/exceptions'
+require_relative 'crc16'
+require_relative 'lib/connection_table'
+require_relative 'lib/exceptions'
 
 class RedisCluster
 

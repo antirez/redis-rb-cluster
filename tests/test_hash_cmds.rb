@@ -1,4 +1,4 @@
-require './tests/test_base'
+require_relative 'test_base'
 
 class TestHashCmds < TestBase
 
