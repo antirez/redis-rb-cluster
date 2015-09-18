@@ -138,7 +138,9 @@ class TestSetCmds < TestBase
 
   def test_sscan
     @rc.sadd(KEY, ['a', 'b'])
-    assert_equal(['0', ['b', 'a']], @rc.sscan(KEY, 0))
+    r = @rc.sscan(KEY, 0)
+    r[1].sort!
+    assert_equal(['0', ['a', 'b']], r)
   end
 
 end
