@@ -247,18 +247,39 @@ class RedisCluster
   end
 
   # server commands
-  def info(cmd = nil)
-    execute_cmd_on_all_nodes(:info, cmd)
+  def config(action, *argv)
+    argv = [action] + argv
+    log_required = [:resetstat, :set].member?(action)
+    execute_cmd_on_all_nodes(:config, log_required=log_required, *argv)
+  end
+
+
+  def dbsize
+    execute_cmd_on_all_nodes(:dbsize)
+  end
+
+  def flushall
+    execute_cmd_on_all_nodes(:flushall)
   end
 
   def flushdb
     execute_cmd_on_all_nodes(:flushdb)
   end
 
-  def config(action, *argv)
-    argv = [action] + argv
-    log_required = [:resetstat, :set].member?(action)
-    execute_cmd_on_all_nodes(:config, log_required=log_required, *argv)
+  def info(cmd = nil)
+    execute_cmd_on_all_nodes(:info, cmd)
+  end
+
+  def shutdown
+    execute_cmd_on_all_nodes(:shutdown)
+  end
+
+  def slowlog(subcommand, length=nil)
+    execute_cmd_on_all_nodes(:slowlog, log_required=false, subcommand, length)
+  end
+
+  def time
+    execute_cmd_on_all_nodes(:time)
   end
 
   # string commands
