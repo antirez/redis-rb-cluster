@@ -220,9 +220,9 @@ class RedisCluster
     raise NotImplementedError, "#{cmd} command is not implemented now!"
   end
 
-  def execute_cmd_on_all_nodes(cmd, log_required = false, *argv)
+  def execute_cmd_on_all_nodes(argv, log_required=false)
     ret = {}
-    #log_required = LOG_REQUIRED_COMMANDS.member?(cmd)
+    cmd = argv.shift
     @startup_nodes.each do |n|
       node_name = n[:name]
       r = @connections.get_connection_by_node(node_name)
@@ -250,36 +250,37 @@ class RedisCluster
   def config(action, *argv)
     argv = [action] + argv
     log_required = [:resetstat, :set].member?(action)
-    execute_cmd_on_all_nodes(:config, log_required=log_required, *argv)
+    execute_cmd_on_all_nodes([:config, *argv], log_required=log_required)
   end
 
 
   def dbsize
-    execute_cmd_on_all_nodes(:dbsize)
+    execute_cmd_on_all_nodes([:dbsize])
   end
 
   def flushall
-    execute_cmd_on_all_nodes(:flushall)
+    execute_cmd_on_all_nodes([:flushall])
   end
 
   def flushdb
-    execute_cmd_on_all_nodes(:flushdb)
+    execute_cmd_on_all_nodes([:flushdb])
   end
 
   def info(cmd = nil)
-    execute_cmd_on_all_nodes(:info, cmd)
+    execute_cmd_on_all_nodes([:info, cmd])
   end
 
   def shutdown
-    execute_cmd_on_all_nodes(:shutdown)
+    execute_cmd_on_all_nodes([:shutdown])
   end
 
   def slowlog(subcommand, length=nil)
-    execute_cmd_on_all_nodes(:slowlog, log_required=false, subcommand, length)
+    execute_cmd_on_all_nodes([:slowlog, subcommand, length],
+                             log_required=false)
   end
 
   def time
-    execute_cmd_on_all_nodes(:time)
+    execute_cmd_on_all_nodes([:time])
   end
 
   # string commands
@@ -674,7 +675,7 @@ class RedisCluster
 
   def keys(pattern = "*")
     # only for debugging purpose
-    ret = execute_cmd_on_all_nodes(:keys, log_required=false, pattern)
+    ret = execute_cmd_on_all_nodes([:keys, pattern], log_required=false)
     ret.values.flatten
   end
 
