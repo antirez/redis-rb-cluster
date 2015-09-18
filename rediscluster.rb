@@ -283,6 +283,11 @@ class RedisCluster
     execute_cmd_on_all_nodes([:time])
   end
 
+  # connection commands
+  def ping
+    execute_cmd_on_all_nodes([:ping])
+  end
+
   # string commands
   def append(key, value)
     send_cluster_command([:append, key, value])
