@@ -19,11 +19,13 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+require 'logger'
 require 'resolv'
 require 'redis'
 require_relative 'crc16'
 require_relative 'lib/connection_table'
 require_relative 'lib/exceptions'
+
 
 class RedisCluster
 
@@ -36,6 +38,8 @@ class RedisCluster
     @connections = ConnectionTable.new(max_connections)
     @opt = opt
     @refresh_table_asap = false
+    @log = Logger.new(STDOUT)
+    @log.level = Logger::INFO
     initialize_slots_cache
   end
 
@@ -56,7 +60,6 @@ class RedisCluster
     @startup_nodes.each{|n|
       begin
         @nodes = []
-
         r = get_redis_link(n[:host],n[:port])
         r.cluster("slots").each {|r|
           (r[0]..r[1]).each{|slot|
@@ -217,12 +220,17 @@ class RedisCluster
     raise NotImplementedError, "#{cmd} command is not implemented now!"
   end
 
-  def execute_cmd_on_all_nodes(cmd, *argv)
+  def execute_cmd_on_all_nodes(cmd, log_required = false, *argv)
     ret = {}
+    #log_required = LOG_REQUIRED_COMMANDS.member?(cmd)
     @startup_nodes.each do |n|
       node_name = n[:name]
       r = @connections.get_connection_by_node(node_name)
       ret[node_name] = r.public_send(cmd, *argv)
+      if log_required
+        all = [cmd] + argv
+        @log.info("Sent #{all.to_s} to #{node_name}")
+      end
     end
     ret
   end
@@ -238,12 +246,19 @@ class RedisCluster
     end
   end
 
+  # server commands
   def info(cmd = nil)
     execute_cmd_on_all_nodes(:info, cmd)
   end
 
   def flushdb
     execute_cmd_on_all_nodes(:flushdb)
+  end
+
+  def config(action, *argv)
+    argv = [action] + argv
+    log_required = [:resetstat, :set].member?(action)
+    execute_cmd_on_all_nodes(:config, log_required=log_required, *argv)
   end
 
   # string commands
