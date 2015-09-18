@@ -5,14 +5,6 @@ require 'test/unit'
 
 class TestListCmds < TestBase
 
-  def test_flushdb
-    ret = @rc.flushdb
-    ret.each do |node, res|
-      assert_equal(OK, res)
-    end
-
-  end
-
   def _push_items_to_list
     @rc.lpush(KEY, 'b')
     @rc.lpush(KEY, 'a')
