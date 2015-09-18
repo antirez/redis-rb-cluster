@@ -653,7 +653,7 @@ class RedisCluster
 
   def keys(pattern = "*")
     # only for debugging purpose
-    ret = execute_cmd_on_all_nodes(:keys, pattern)
+    ret = execute_cmd_on_all_nodes(:keys, log_required=false, pattern)
     ret.values.flatten
   end
 
