@@ -229,7 +229,7 @@ class RedisCluster
       ret[node_name] = r.public_send(cmd, *argv)
       if log_required
         all = [cmd] + argv
-        @log.info("Sent #{all.to_s} to #{node_name}")
+        @log.info("Successfully sent #{all.to_s} to #{node_name}")
       end
     end
     ret
