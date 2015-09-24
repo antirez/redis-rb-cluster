@@ -1,3 +1,4 @@
+# coding: utf-8
 # Copyright (C) 2013 Salvatore Sanfilippo <antirez@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
@@ -35,8 +36,11 @@ class RedisCluster
 
   def initialize(startup_nodes, max_connections, opt={})
     @startup_nodes = startup_nodes
-    @connections = ConnectionTable.new(max_connections)
-    @opt = opt
+    read_slave = opt[:read_slave]
+    @timeout = opt[:timeout] or RedisClusterDefaultTimeout
+    @connections = ConnectionTable.new(max_connections,
+                                       read_slave: read_slave,
+                                       timeout: @timeout)
     @refresh_table_asap = false
     @log = Logger.new(STDOUT)
     @log.level = Logger::INFO
@@ -48,8 +52,29 @@ class RedisCluster
   end
 
   def get_redis_link(host,port)
-    timeout = @opt[:timeout] or RedisClusterDefaultTimeout
-    Redis.new(:host => host, :port => port, :timeout => timeout)
+    Redis.new(:host => host, :port => port, :timeout => @timeout)
+  end
+
+  def fetch_nodes(nodes, dns_cache)
+    ret = []
+    nodes.each_with_index do |item, index|
+      ip, port = item
+      host = dns_cache.fetch(ip) {
+        |missing_ip|
+        host = Resolv.getname(missing_ip)
+        dns_cache[ip] = host
+        host
+      }
+      name = "#{host}:#{port}"
+      role = index == 0 ? 'master' : 'slave'
+      node = {
+        :host => host, :port => port,
+        :name => name, :ip => ip,
+        :role => role
+      }
+      ret << node
+    end
+    ret
   end
 
   # Contact the startup nodes and try to fetch the hash slots -> instances
@@ -59,31 +84,24 @@ class RedisCluster
     dns_cache = {}
     @startup_nodes.each{|n|
       begin
-        @nodes = []
+        nodes = []
         r = get_redis_link(n[:host],n[:port])
         r.cluster("slots").each {|r|
+          slot_nodes = fetch_nodes(r[2..-1], dns_cache)
+          nodes += slot_nodes
+          node_names = slot_nodes.map { |x| x[:name]}.compact
           (r[0]..r[1]).each{|slot|
-            ip,port = r[2]
-            host = dns_cache.fetch(ip) {
-              |missing_ip|
-              host = Resolv.getname(missing_ip)
-              dns_cache[ip] = host
-              host
-            }
-            name = "#{host}:#{port}"
-            node = {
-              :host => host, :port => port,
-              :name => name, :ip => ip
-            }
-            @nodes << node
-            @connections.update_slot!(slot, name)
+            @connections.update_slot!(slot, node_names)
           }
+          @connections.init_node_pool(slot_nodes)
         }
-        populate_startup_nodes
+        populate_startup_nodes(nodes)
         @refresh_table_asap = false
-      rescue
+      rescue Errno::ECONNREFUSED, Redis::TimeoutError, Redis::CannotConnectError, Errno::EACCES
         # Try with the next node on error.
         next
+      rescue
+        raise
       end
       # Exit the loop as long as the first node replies
       startup_nodes_reachable = true
@@ -94,34 +112,20 @@ class RedisCluster
     end
   end
 
-  def clean_startup_nodes!(n)
-    n[:port] = n[:port].to_i
-    n[:ip] = Resolv.getaddress(n[:host])
-    n[:host] = Resolv.getname(n[:ip])
-  end
-
-  def set_node_name!(n)
-    n[:name] = "#{n[:host]}:#{n[:port]}"
-  end
-
-  def add_missing_nodes
-    @nodes.each do |n|
-      @startup_nodes << n
-    end
-  end
-
   # Use @nodes to populate @startup_nodes, so that we have more chances
   # if a subset of the cluster fails.
-  def populate_startup_nodes
-    # Make sure every node has already a name, so that later the
-    # Array uniq! method will work reliably.
-    # Also make sure we have the same host name given an ip address
-    @startup_nodes.each do |n|
-      clean_startup_nodes! n
-      set_node_name! n
-    end
-    add_missing_nodes
-    @startup_nodes.uniq!
+  def populate_startup_nodes(nodes)
+    # # Make sure every node has already a name, so that later the
+    # # Array uniq! method will work reliably.
+    # # Also make sure we have the same host name given an ip address
+    # @startup_nodes.each do |n|
+    #   clean_startup_nodes! n
+    #   set_node_name! n
+    # end
+    # add_missing_nodes
+    # @startup_nodes.uniq!
+    nodes.uniq!
+    @startup_nodes = nodes
   end
 
   # Return the hash slot from the key.
@@ -165,8 +169,9 @@ class RedisCluster
   end
 
   # Dispatch commands.
-  def send_cluster_command(argv)
+  def send_cluster_command(argv, master_only: true)
     initialize_slots_cache if @refresh_table_asap
+    @connections.make_fork_safe(@startup_nodes)
     ttl = RedisClusterRequestTTL; # Max number of redirections
     e = ""
     asking = false
@@ -177,11 +182,12 @@ class RedisCluster
       raise "No way to dispatch this command to Redis Cluster." if !key
       slot = keyslot(key)
       if try_random_node
-        r = @connections.get_random_connection
+        r = @connections.get_random_connection(master_only)
         try_random_node = false
       else
-        r = @connections.get_connection_by_slot(slot)
+        r = @connections.get_connection_by_slot(slot, master_only)
       end
+
       begin
         # TODO: use pipelining to send asking and save a rtt.
         r.asking if asking
@@ -203,7 +209,9 @@ class RedisCluster
           newslot = errv[1].to_i
           node_name = errv[2]
           if !asking
-            @connections.update_slot!(newslot, node_name)
+            ip, port = node_name.split(":")
+            node_name = "#{Resolv.getname(ip)}:#{port}"
+            @connections.update_slot!(newslot, [node_name])
           end
         else
           raise e
@@ -220,10 +228,14 @@ class RedisCluster
     raise NotImplementedError, "#{cmd} command is not implemented now!"
   end
 
-  def execute_cmd_on_all_nodes(argv, log_required=false)
+  def execute_cmd_on_all_nodes(argv, master_only: true, log_required: false)
+    @connections.make_fork_safe(@startup_nodes)
     ret = {}
     cmd = argv.shift
     @startup_nodes.each do |n|
+      if master_only && n[:role] == 'slave'
+        next
+      end
       node_name = n[:name]
       r = @connections.get_connection_by_node(node_name)
       ret[node_name] = r.public_send(cmd, *argv)
@@ -250,12 +262,12 @@ class RedisCluster
   def config(action, *argv)
     argv = [action] + argv
     log_required = [:resetstat, :set].member?(action)
-    execute_cmd_on_all_nodes([:config, *argv], log_required=log_required)
+    execute_cmd_on_all_nodes([:config, *argv], log_required: log_required)
   end
 
 
   def dbsize
-    execute_cmd_on_all_nodes([:dbsize])
+    execute_cmd_on_all_nodes([:dbsize], master_only: false)
   end
 
   def flushall
@@ -267,7 +279,7 @@ class RedisCluster
   end
 
   def info(cmd = nil)
-    execute_cmd_on_all_nodes([:info, cmd])
+    execute_cmd_on_all_nodes([:info, cmd], master_only: false)
   end
 
   def shutdown
@@ -276,16 +288,16 @@ class RedisCluster
 
   def slowlog(subcommand, length=nil)
     execute_cmd_on_all_nodes([:slowlog, subcommand, length],
-                             log_required=false)
+                             master_only: false)
   end
 
   def time
-    execute_cmd_on_all_nodes([:time])
+    execute_cmd_on_all_nodes([:time], master_only: false)
   end
 
   # connection commands
   def ping
-    execute_cmd_on_all_nodes([:ping])
+    execute_cmd_on_all_nodes([:ping], master_only: false)
   end
 
   # string commands
@@ -294,7 +306,7 @@ class RedisCluster
   end
 
   def bitcount(key, start = 0, stop = -1)
-    send_cluster_command([:bitcount, key, start, stop])
+    send_cluster_command([:bitcount, key, start, stop], master_only: false)
   end
 
   def bitop(operation, dest_key, *keys)
@@ -315,15 +327,15 @@ class RedisCluster
   end
 
   def get(key)
-    send_cluster_command([:get, key])
+    send_cluster_command([:get, key], master_only: false)
   end
 
   def getbit(key, offset)
-    send_cluster_command([:getbit, key, offset])
+    send_cluster_command([:getbit, key, offset], master_only: false)
   end
 
   def getrange(key, start, stop)
-    send_cluster_command([:getrange, key, start, stop])
+    send_cluster_command([:getrange, key, start, stop], master_only: false)
   end
 
   def incr(key)
@@ -363,7 +375,7 @@ class RedisCluster
   end
 
   def strlen(key)
-    send_cluster_command([:strlen, key])
+    send_cluster_command([:strlen, key], master_only: false)
   end
 
   # list commands
@@ -385,7 +397,7 @@ class RedisCluster
   end
 
   def lindex(key, index)
-    send_cluster_command([:lindex, key, index])
+    send_cluster_command([:lindex, key, index], master_only: false)
   end
 
   def linsert(key, where, pivot, value)
@@ -393,7 +405,7 @@ class RedisCluster
   end
 
   def llen(key)
-    send_cluster_command([:llen, key])
+    send_cluster_command([:llen, key], master_only: false)
   end
 
   def lpop(key)
@@ -409,7 +421,7 @@ class RedisCluster
   end
 
   def lrange(key, start, stop)
-    send_cluster_command([:lrange, key, start, stop])
+    send_cluster_command([:lrange, key, start, stop], master_only: false)
   end
 
   def lrem(key, count, value)
@@ -417,7 +429,7 @@ class RedisCluster
   end
 
   def lset(key, index, value)
-    send_cluster_command([:lset, key, index, value])
+    send_cluster_command([:lset, key, index, value], master_only: false)
   end
 
   def ltrim(key, start, stop)
@@ -471,11 +483,11 @@ class RedisCluster
   end
 
   def sismember(key, member)
-    send_cluster_command([:sismember, key, member])
+    send_cluster_command([:sismember, key, member], master_only: false)
   end
 
   def smembers(key)
-    send_cluster_command([:smembers, key])
+    send_cluster_command([:smembers, key], master_only: false)
   end
 
   def smove(source, destination, member)
@@ -488,7 +500,7 @@ class RedisCluster
   end
 
   def srandmember(key, count = nil)
-    send_cluster_command([:srandmember, key, count])
+    send_cluster_command([:srandmember, key, count], master_only: false)
   end
 
   def srem(key, member)
@@ -497,7 +509,7 @@ class RedisCluster
 
   def sunion(*keys)
     _check_keys_in_same_slot(keys)
-    send_cluster_command([:sunion, *keys])
+    send_cluster_command([:sunion, *keys], master_only: false)
   end
 
   def sunionstore(destination, *keys)
@@ -515,11 +527,11 @@ class RedisCluster
   end
 
   def zcard(key)
-    send_cluster_command([:zcard, key])
+    send_cluster_command([:zcard, key], master_only: false)
   end
 
   def zcount(key, min, max)
-    send_cluster_command([:zcount, key, min, max])
+    send_cluster_command([:zcount, key, min, max], master_only: false)
   end
 
   def zincrby(key, increment, member)
@@ -537,23 +549,27 @@ class RedisCluster
   #end
 
   def zrange(key, start, stop, options = {})
-    send_cluster_command([:zrange, key, start, stop, options])
+    send_cluster_command([:zrange, key, start, stop, options],
+                         master_only: false)
   end
 
   def zrangebylex(key, min, max, options = {})
-    send_cluster_command([:zrangebylex, key, min, max, options])
+    send_cluster_command([:zrangebylex, key, min, max, options],
+                         master_only: false)
   end
 
   def zrevrangebylex(key, max, min, options = {})
-    send_cluster_command([:zrevrangebylex, key, max, min, options])
+    send_cluster_command([:zrevrangebylex, key, max, min, options],
+                         master_only: false)
   end
 
   def zrangebyscore(key, min, max, options = {})
-    send_cluster_command([:zrangebyscore, key, min, max, options])
+    send_cluster_command([:zrangebyscore, key, min, max, options],
+                         master_only: false)
   end
 
   def zrank(key, member)
-    send_cluster_command([:zrank, key, member])
+    send_cluster_command([:zrank, key, member], master_only: false)
   end
 
   def zrem(key, member)
@@ -572,19 +588,21 @@ class RedisCluster
   end
 
   def zrevrange(key, start, stop, options = {})
-    send_cluster_command([:zrevrange, key, start, stop, options])
+    send_cluster_command([:zrevrange, key, start, stop, options],
+                         master_only: false)
   end
 
   def zrevrangebyscore(key, max, min, options = {})
-    send_cluster_command([:zrevrangebyscore, key, max, min, options])
+    send_cluster_command([:zrevrangebyscore, key, max, min, options],
+                         master_only: false)
   end
 
   def zrevrank(key, member)
-    send_cluster_command([:zrevrank, key, member])
+    send_cluster_command([:zrevrank, key, member], master_only: false)
   end
 
   def zscore(key, member)
-    send_cluster_command([:zscore, key, member])
+    send_cluster_command([:zscore, key, member], master_only: false)
   end
 
   def zunionstore(destination, keys, options = {})
@@ -602,15 +620,15 @@ class RedisCluster
   end
 
   def hexists(key, field)
-    send_cluster_command([:hexists, key, field])
+    send_cluster_command([:hexists, key, field], master_only: false)
   end
 
   def hget(key, field)
-    send_cluster_command([:hget, key, field])
+    send_cluster_command([:hget, key, field], master_only: false)
   end
 
   def hgetall(key)
-    send_cluster_command([:hgetall, key])
+    send_cluster_command([:hgetall, key], master_only: false)
   end
 
   def hincrby(key, field, increment)
@@ -622,15 +640,15 @@ class RedisCluster
   end
 
   def hkeys(key)
-    send_cluster_command([:hkeys, key])
+    send_cluster_command([:hkeys, key], master_only: false)
   end
 
   def hlen(key)
-    send_cluster_command([:hlen, key])
+    send_cluster_command([:hlen, key], master_only: false)
   end
 
   def hmget(key, fields)
-    send_cluster_command([:hmget, key, fields])
+    send_cluster_command([:hmget, key, fields], master_only: false)
   end
 
   def hmset(key, *attrs)
@@ -650,7 +668,7 @@ class RedisCluster
   # end
 
   def hvals(key)
-    send_cluster_command([:hvals, key])
+    send_cluster_command([:hvals, key], master_only: false)
   end
 
   def hscan(key, cursor, options = {})
@@ -667,7 +685,7 @@ class RedisCluster
   end
 
   def exists(key)
-    send_cluster_command([:exists, key])
+    send_cluster_command([:exists, key], master_only: false)
   end
 
   def expire(key, seconds)
@@ -680,7 +698,7 @@ class RedisCluster
 
   def keys(pattern = "*")
     # only for debugging purpose
-    ret = execute_cmd_on_all_nodes([:keys, pattern], log_required=false)
+    ret = execute_cmd_on_all_nodes([:keys, pattern])
     ret.values.flatten
   end
 

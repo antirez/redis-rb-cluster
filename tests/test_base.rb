@@ -16,7 +16,7 @@ class TestBase < Test::Unit::TestCase
       {:host => host, :port => port1},
       {:host => host, :port => port2},
     ]
-    @rc = RedisCluster.new(startup_nodes, 2)
+    @rc = RedisCluster.new(startup_nodes, 2, :read_slave=>true)
   end
 
   def teardown
