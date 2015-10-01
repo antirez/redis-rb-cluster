@@ -57,10 +57,6 @@ class ConnectionTable
     get_connection_by_node(node)
   end
 
-  def flush_slots_cache
-    @slots = {}
-  end
-
   def init_node_pool(nodes)
     nodes.each do |n|
       name = n[:name]
