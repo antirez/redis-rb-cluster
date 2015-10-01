@@ -20,7 +20,7 @@ class ConnectionTable
   end
 
   def inspect
-   "#<#{self.class.name}: @max_connections=#{@max_connections}>"
+   "#<#{self.class.name}: @master_conns=#{@master_conns.keys}, @slave_conns=#{@slave_conns.keys}, @max_connections=#{@max_connections}, @timeout=#{@timeout}>"
   end
 
   def new_pool(node, read_only: false)
