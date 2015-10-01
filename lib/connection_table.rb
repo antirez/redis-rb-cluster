@@ -9,10 +9,10 @@ class ConnectionTable
     [host, port]
   end
 
-  def initialize(max_connections, read_slave: false, timeout: nil)
+  def initialize(max_connections, read_slave: false, opt: {})
+    @opt = opt
     @max_connections = max_connections
     @read_slave = read_slave
-    @timeout = timeout
     @master_conns = {}
     @slave_conns = {}
     @slots = {}
@@ -20,13 +20,16 @@ class ConnectionTable
   end
 
   def inspect
-   "#<#{self.class.name}: @master_conns=#{@master_conns.keys}, @slave_conns=#{@slave_conns.keys}, @max_connections=#{@max_connections}, @timeout=#{@timeout}>"
+   "#<#{self.class.name}: @master_conns=#{@master_conns.keys}, @slave_conns=#{@slave_conns.keys}, @max_connections=#{@max_connections}>"
   end
 
   def new_pool(node, read_only: false)
     host, port = split_node(node)
     ConnectionPool.new(size: @max_connections) {
-      r = Redis.new(:host => host, :port => port, :timeout => @timeout)
+      opt = @opt.dup
+      opt[:host] = host
+      opt[:port] = port
+      r = Redis.new(opt)
       if read_only
         r.readonly
       end

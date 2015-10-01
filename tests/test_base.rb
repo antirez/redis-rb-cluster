@@ -16,7 +16,9 @@ class TestBase < Test::Unit::TestCase
       {:host => host, :port => port1},
       {:host => host, :port => port2},
     ]
-    @rc = RedisCluster.new(startup_nodes, 2, :read_slave=>true)
+    conn_opt = {:timeout => 2}
+    @rc = RedisCluster.new(startup_nodes, max_connections: 2, read_slave: true,
+                           conn_opt: conn_opt)
   end
 
   def teardown

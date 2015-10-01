@@ -34,13 +34,13 @@ class RedisCluster
   RedisClusterRequestTTL = 16
   RedisClusterDefaultTimeout = 1
 
-  def initialize(startup_nodes, max_connections, opt={})
+  def initialize(startup_nodes, max_connections: 3, read_slave: false,
+                 conn_opt: {})
     @startup_nodes = startup_nodes
-    read_slave = opt[:read_slave]
-    @timeout = opt[:timeout] or RedisClusterDefaultTimeout
+    @conn_opt = conn_opt
     @connections = ConnectionTable.new(max_connections,
                                        read_slave: read_slave,
-                                       timeout: @timeout)
+                                       opt: @conn_opt)
     @refresh_table_asap = false
     @log = Logger.new(STDOUT)
     @log.level = Logger::INFO
@@ -52,7 +52,10 @@ class RedisCluster
   end
 
   def get_redis_link(host,port)
-    Redis.new(:host => host, :port => port, :timeout => @timeout)
+    opt = @conn_opt.dup
+    opt[:host] = host
+    opt[:port] = port
+    Redis.new(opt)
   end
 
   def fetch_nodes(nodes, dns_cache)
