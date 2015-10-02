@@ -34,6 +34,11 @@ class RedisCluster
   RedisClusterRequestTTL = 16
   RedisClusterDefaultTimeout = 1
 
+  # Initialise the client
+
+  # @param [Fixnum] number of connections in each connection pool
+  # @param [boolean] if read from slave is required
+  # @param [Hash] redis-rb connection options
   def initialize(startup_nodes, max_connections: 3, read_slave: false,
                  conn_opt: {})
     @startup_nodes = startup_nodes
@@ -58,6 +63,9 @@ class RedisCluster
     Redis.new(opt)
   end
 
+  # Fetch nodes from slots command
+  # According to the protocol, first item in the array is master and the rest are slaves
+  # To accelerate the process, cache is used for getting hostnames
   def fetch_nodes(nodes, dns_cache)
     ret = []
     nodes.each_with_index do |item, index|
@@ -115,7 +123,7 @@ class RedisCluster
     end
   end
 
-  # Use @nodes to populate @startup_nodes, so that we have more chances
+  # Use nodes to populate @startup_nodes, so that we have more chances
   # if a subset of the cluster fails.
   def populate_startup_nodes(nodes)
     # # Make sure every node has already a name, so that later the
