@@ -56,13 +56,26 @@ class TestHashCmds < TestBase
   def test_hmget
     @rc.hset(KEY, FIELD1, 'a')
     @rc.hset(KEY, FIELD2, 'b')
-    assert_equal(['a', 'b'], @rc.hmget(KEY, [FIELD1, FIELD2]).sort!)
+    assert_equal(['a', 'b'], @rc.hmget(KEY, *[FIELD1, FIELD2]).sort!)
+  end
+
+  def test_mapped_get
+    @rc.hset(KEY, FIELD1, 'a')
+    @rc.hset(KEY, FIELD2, 'b')
+    ret = {FIELD1 => 'a', FIELD2 => 'b'}
+    assert_equal(ret, @rc.mapped_hmget(KEY, *[FIELD1, FIELD2]))
   end
 
   def test_hmset
     attrs = [FIELD1, 'a', FIELD2, 'b']
     assert_equal(OK, @rc.hmset(KEY, *attrs))
-    assert_equal(['a', 'b'], @rc.hmget(KEY, [FIELD1, FIELD2]).sort!)
+    assert_equal(['a', 'b'], @rc.hmget(KEY, *[FIELD1, FIELD2]).sort!)
+  end
+
+  def test_mapped_hmset
+    hash = {FIELD1 => 'a', FIELD2 => 'b'}
+    assert_equal(OK, @rc.mapped_hmset(KEY, hash))
+    assert_equal(['a', 'b'], @rc.hmget(KEY, *[FIELD1, FIELD2]).sort!)
   end
 
   def test_hsetnx

@@ -180,7 +180,7 @@ class RedisCluster
   end
 
   # Dispatch commands.
-  def send_cluster_command(argv, master_only: true)
+  def send_cluster_command(argv, master_only: true, &blk)
     initialize_slots_cache if @refresh_table_asap
     @connections.make_fork_safe(@startup_nodes)
     ttl = RedisClusterRequestTTL; # Max number of redirections
@@ -203,7 +203,7 @@ class RedisCluster
         # TODO: use pipelining to send asking and save a rtt.
         r.asking if asking
         asking = false
-        return r.send(argv[0].to_sym,*argv[1..-1])
+        return r.send(argv[0].to_sym,*argv[1..-1], &blk)
       rescue Errno::ECONNREFUSED, Redis::TimeoutError, Redis::CannotConnectError, Errno::EACCES
         try_random_node = true
         sleep(0.1) if ttl < RedisClusterRequestTTL/2
@@ -658,12 +658,26 @@ class RedisCluster
     send_cluster_command([:hlen, key], master_only: false)
   end
 
-  def hmget(key, fields)
-    send_cluster_command([:hmget, key, fields], master_only: false)
+  def hmget(key, *fields, &blk)
+    send_cluster_command([:hmget, key, *fields], master_only: false, &blk)
+  end
+
+  def mapped_hmget(key, *fields)
+    hmget(key, *fields) do |reply|
+      if reply.kind_of?(Array)
+        Hash[fields.zip(reply)]
+      else
+        reply
+      end
+    end
   end
 
   def hmset(key, *attrs)
-    send_cluster_command([:hmset, key, attrs])
+    send_cluster_command([:hmset, key, *attrs])
+  end
+
+  def mapped_hmset(key, hash)
+    hmset(key, hash.to_a.flatten)
   end
 
   def hset(key, field, value)
