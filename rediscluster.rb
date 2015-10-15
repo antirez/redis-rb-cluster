@@ -273,7 +273,7 @@ class RedisCluster
   def config(action, *argv)
     argv = [action] + argv
     log_required = [:resetstat, :set].member?(action)
-    execute_cmd_on_all_nodes([:config, *argv], log_required: log_required)
+    execute_cmd_on_all_nodes([:config, *argv], master_only: false, log_required: log_required)
   end
 
 
@@ -294,7 +294,7 @@ class RedisCluster
   end
 
   def shutdown
-    execute_cmd_on_all_nodes([:shutdown])
+    execute_cmd_on_all_nodes([:shutdown], master_only: false)
   end
 
   def slowlog(subcommand, length=nil)
