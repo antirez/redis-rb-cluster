@@ -16,7 +16,7 @@ WORKDIR /
 
 RUN echo 'daemonize no\npidfile 7000.pid\ncluster-config-file /7000/node.conf\nport 7000\ncluster-enabled yes\ncluster-node-timeout 5000\nappendonly yes\nappendonly no\ndbfilename dump.rdb\ndir /7000' > conf.tmpl
 
-RUN mkdir 7002 7003 7004 7005 7006 7007 7008 7009 7010 7011 7012 7013
+RUN mkdir 7002 7003 7004 7005 7006 7007
 
 RUN cp conf.tmpl 7002/redis.conf
 RUN sed -i 's/7000/7002/' 7002/redis.conf
@@ -35,25 +35,6 @@ RUN sed -i 's/7000/7006/' 7006/redis.conf
 
 RUN cp conf.tmpl 7007/redis.conf
 RUN sed -i 's/7000/7007/' 7007/redis.conf
-
-RUN cp conf.tmpl 7008/redis.conf
-RUN sed -i 's/7000/7008/' 7008/redis.conf
-
-RUN cp conf.tmpl 7009/redis.conf
-RUN sed -i 's/7000/7009/' 7009/redis.conf
-
-RUN cp conf.tmpl 7010/redis.conf
-RUN sed -i 's/7000/7010/' 7010/redis.conf
-
-RUN cp conf.tmpl 7011/redis.conf
-RUN sed -i 's/7000/7011/' 7011/redis.conf
-
-RUN cp conf.tmpl 7012/redis.conf
-RUN sed -i 's/7000/7012/' 7012/redis.conf
-
-RUN cp conf.tmpl 7013/redis.conf
-RUN sed -i 's/7000/7013/' 7013/redis.conf
-
 
 RUN gem install redis
 
