@@ -126,15 +126,6 @@ class RedisCluster
   # Use nodes to populate @startup_nodes, so that we have more chances
   # if a subset of the cluster fails.
   def populate_startup_nodes(nodes)
-    # # Make sure every node has already a name, so that later the
-    # # Array uniq! method will work reliably.
-    # # Also make sure we have the same host name given an ip address
-    # @startup_nodes.each do |n|
-    #   clean_startup_nodes! n
-    #   set_node_name! n
-    # end
-    # add_missing_nodes
-    # @startup_nodes.uniq!
     nodes.uniq!
     @startup_nodes = nodes
   end
