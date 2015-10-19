@@ -74,13 +74,46 @@ class TestStrCmds < TestBase
     assert_equal(0.3, @rc.incrbyfloat(KEY, 0.2))
   end
 
-  def test_psetex(*argv)
+  def test_mget
+    key1, key2 = get_keys_in_same_slot
+    @rc.set(key1, 'a')
+    @rc.set(key2, 'b')
+    assert_equal(['a', 'b'], @rc.mget(key1, key2))
+  end
+
+  def test_mapped_mget
+    key1, key2 = get_keys_in_same_slot
+    @rc.set(key1, 'a')
+    @rc.set(key2, 'b')
+    ret = {
+      key1 => 'a',
+      key2 => 'b'
+    }
+    assert_equal(ret, @rc.mapped_mget(key1, key2))
+  end
+
+  def test_psetex
     assert_equal(OK, @rc.setex(KEY, 100, 10))
   end
 
-  def test_set(*argv)
+  def test_set
     assert_equal(OK, @rc.set(KEY, 'a'))
     assert_equal('a', @rc.get(KEY))
+  end
+
+  def test_mset
+    key1, key2 = get_keys_in_same_slot
+    @rc.mset(key1, 'a', key2, 'b')
+    assert_equal(['a', 'b'], @rc.mget(key1, key2))
+  end
+
+  def test_mapped_mset
+    key1, key2 = get_keys_in_same_slot
+    hash = {
+      key1 => 'a',
+      key2 => 'b'
+    }
+    assert_equal(OK, @rc.mapped_mset(hash))
   end
 
   def test_setbit
@@ -95,6 +128,22 @@ class TestStrCmds < TestBase
     assert_equal(true, @rc.setnx(KEY, 'hello'))
     assert_equal(false, @rc.setnx(KEY, 'world'))
     assert_equal('hello', @rc.get(KEY))
+  end
+
+  def test_msetnx
+    key1, key2 = get_keys_in_same_slot
+    assert_equal(true, @rc.msetnx(key1, 'a', key2, 'b'))
+    assert_equal(false, @rc.msetnx(key1, 'a', key2, 'b'))
+  end
+
+  def test_mapped_msetnx
+    key1, key2 = get_keys_in_same_slot
+    hash = {
+      key1 => 'a',
+      key2 => 'b'
+    }
+    assert_equal(true, @rc.mapped_msetnx(hash))
+    assert_equal(false, @rc.mapped_msetnx(hash))
   end
 
   def test_setrange

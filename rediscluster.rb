@@ -352,12 +352,47 @@ class RedisCluster
     send_cluster_command([:incrbyfloat, key, increment])
   end
 
+  def mget(*keys, &blk)
+    _check_keys_in_same_slot(keys)
+    send_cluster_command([:mget, *keys], master_only: false, &blk)
+  end
+
+  def mapped_mget(*keys)
+    mget(*keys) do |reply|
+      if reply.kind_of?(Array)
+        Hash[keys.zip(reply)]
+      else
+        reply
+      end
+    end
+  end
+
   def psetex(key, millisec, value)
     send_cluster_command([:psetex, key, millisec, value])
   end
 
   def set(key, value)
     send_cluster_command([:set, key, value])
+  end
+
+  def mset(*args)
+    keys = args.select.each_with_index { |_, i| i.even? }
+    _check_keys_in_same_slot(keys)
+    send_cluster_command([:mset, *args])
+  end
+
+  def mapped_mset(hash)
+    mset(*hash.to_a.flatten)
+  end
+
+  def msetnx(*args)
+    keys = args.select.each_with_index { |_, i| i.even? }
+    _check_keys_in_same_slot(keys)
+    send_cluster_command([:msetnx, *args])
+  end
+
+  def mapped_msetnx(hash)
+    msetnx(*hash.to_a.flatten)
   end
 
   def setbit(key, offset, value)
