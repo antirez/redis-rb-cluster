@@ -1,19 +1,12 @@
 ---
-web:
+client:
   build: .
   ports:
     - "6022:22"
   volumes:
     - .:/code
-  volumes_from:
-    - gems
   links:
     - redis
 
 redis:
   build: ./dev
-
-gems:
-  image: busybox
-  volumes:
-    - /gems

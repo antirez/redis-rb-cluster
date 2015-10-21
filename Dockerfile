@@ -13,14 +13,8 @@ RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
 
-# install supervisor
-RUN apt-get install -y supervisor
-RUN touch /var/run/supervisor.sock
-RUN chmod 777 /var/run/supervisor.sock
-ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
 ENV GEM_HOME /gems
 RUN echo "export GEM_PATH=/gems" >> /etc/profile
 ADD . /code
 
-CMD ["/usr/bin/supervisord"]
+CMD ["/usr/sbin/sshd", "-D"]

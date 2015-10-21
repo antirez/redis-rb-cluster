@@ -12,5 +12,6 @@ Gem::Specification.new do |s|
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["."]
   #s.license = "BSD"
-  s.add_runtime_dependency 'connection_pool'
+  s.add_runtime_dependency 'connection_pool', '~> 2.2', '>= 2.2.0'
+  s.add_runtime_dependency 'redis', '~> 3.2', '>= 3.2.1'
 end

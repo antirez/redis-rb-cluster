@@ -14,7 +14,7 @@ and test Redis Cluster, that is a work in progress itself.
 
 `$ gem build redis-rb-cluster.gemspec`
 
-`$ gem install --local rediscluster-0.1.gem`
+`$ gem install rediscluster-0.1.gem`
 
 ## Creating a new instance
 

@@ -1,22 +1,19 @@
-FROM debian:wheezy
+FROM redis:latest
 
 RUN apt-get update
-RUN apt-get install -y openssh-server wget gcc make vim ruby
-
-ENV LOCAL_SRC /usr/local/src
-WORKDIR ${LOCAL_SRC}
-RUN wget http://download.redis.io/releases/redis-3.0.0.tar.gz
-RUN tar -zxvf redis-3.0.0.tar.gz
-
-ENV REDIS_DIR ${LOCAL_SRC}/redis-3.0.0
-WORKDIR ${REDIS_DIR}
-RUN make
+RUN apt-get install -y ruby
+RUN apt-get install -y supervisor
 
 WORKDIR /
 
 RUN echo 'daemonize no\npidfile 7000.pid\ncluster-config-file /7000/node.conf\nport 7000\ncluster-enabled yes\ncluster-node-timeout 5000\nappendonly yes\nappendonly no\ndbfilename dump.rdb\ndir /7000' > conf.tmpl
 
-RUN mkdir 7002 7003 7004 7005 7006 7007
+RUN mkdir 7000 7001 7002 7003 7004 7005
+
+RUN cp conf.tmpl 7000/redis.conf
+
+RUN cp conf.tmpl 7001/redis.conf
+RUN sed -i 's/7000/7001/' 7001/redis.conf
 
 RUN cp conf.tmpl 7002/redis.conf
 RUN sed -i 's/7000/7002/' 7002/redis.conf
@@ -30,17 +27,11 @@ RUN sed -i 's/7000/7004/' 7004/redis.conf
 RUN cp conf.tmpl 7005/redis.conf
 RUN sed -i 's/7000/7005/' 7005/redis.conf
 
-RUN cp conf.tmpl 7006/redis.conf
-RUN sed -i 's/7000/7006/' 7006/redis.conf
-
-RUN cp conf.tmpl 7007/redis.conf
-RUN sed -i 's/7000/7007/' 7007/redis.conf
-
 RUN gem install redis
 
-RUN apt-get install -y supervisor
-
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY redis-trib.rb /redis-trib.rb
+COPY create_cluster.sh /create_cluster.sh
 
 EXPOSE 7002
 EXPOSE 7003
