@@ -46,5 +46,5 @@ command we need a function able to identify the key among the arguments.
 
 ## Disclaimer
 
-Both this client and Redis Cluster are a work in progress that is not suitable
-to be used in production environments.
+Redis Cluster is released as stable. 
+This client is a work in progress that might not be suitable to be used in production environments.
