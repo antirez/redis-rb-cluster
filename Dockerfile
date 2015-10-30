@@ -15,6 +15,7 @@ RUN echo "export VISIBLE=now" >> /etc/profile
 
 ENV GEM_HOME /gems
 RUN echo "export GEM_PATH=/gems" >> /etc/profile
+RUN gem install redis connection_pool
 ADD . /code
 
 CMD ["/usr/sbin/sshd", "-D"]
