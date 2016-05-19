@@ -6,7 +6,17 @@ RUN apt-get install -y supervisor
 
 WORKDIR /
 
-RUN echo 'daemonize no\npidfile 7000.pid\ncluster-config-file /7000/node.conf\nport 7000\ncluster-enabled yes\ncluster-node-timeout 5000\nappendonly yes\nappendonly no\ndbfilename dump.rdb\ndir /7000' > conf.tmpl
+# install openssh-server
+RUN apt-get update
+RUN apt-get install -y openssh-server
+RUN mkdir /var/run/sshd
+RUN echo 'root:root' | chpasswd
+RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" >> /etc/profile
+
+RUN echo 'daemonize yes\npidfile 7000.pid\ncluster-config-file /7000/node.conf\nport 7000\ncluster-enabled yes\ncluster-node-timeout 5000\nappendonly yes\nappendonly no\ndbfilename dump.rdb\ndir /7000' > conf.tmpl
 
 RUN mkdir 7000 7001 7002 7003 7004 7005
 

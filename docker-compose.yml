@@ -10,3 +10,5 @@ client:
 
 redis:
   build: ./dev
+  ports:
+    - "7022:22"
