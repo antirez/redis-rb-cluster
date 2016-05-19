@@ -1,4 +1,4 @@
-require './cluster'
+require './rediscluster'
 
 if ARGV.length != 2
     startup_nodes = [

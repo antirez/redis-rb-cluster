@@ -1,0 +1,14 @@
+---
+client:
+  build: .
+  ports:
+    - "6022:22"
+  volumes:
+    - .:/code
+  links:
+    - redis
+
+redis:
+  build: ./dev
+  ports:
+    - "7022:22"
