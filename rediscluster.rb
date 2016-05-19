@@ -173,6 +173,8 @@ class RedisCluster
 
     # Dispatch commands.
     def send_cluster_command(argv, master_only: true, &blk)
+        key = get_key_from_command(argv)
+        slot = keyslot(key)
         initialize_slots_cache if @refresh_table_asap
         @connections.make_fork_safe(@startup_nodes)
         ttl = RedisClusterRequestTTL; # Max number of redirections
@@ -182,9 +184,7 @@ class RedisCluster
         while ttl > 0
             ttl -= 1
             initialize_slots_cache if @refresh_table_asap
-            key = get_key_from_command(argv)
             raise "No way to dispatch this command to Redis Cluster." if !key
-            slot = keyslot(key)
             if try_random_node
                 r = @connections.get_random_connection(master_only)
                 try_random_node = false
