@@ -40,9 +40,10 @@ class RedisCluster
     # @param [boolean] if read from slave is required
     # @param [Hash] redis-rb connection options
     def initialize(startup_nodes, max_connections: 3, read_slave: false,
-                   conn_opt: {})
+                   cluster_retry_interval: 3, conn_opt: {})
         @startup_nodes = startup_nodes
         @conn_opt = conn_opt
+        @cluster_retry_interval = cluster_retry_interval
         @connections = ConnectionTable.new(max_connections,
                                            read_slave: read_slave,
                                            opt: @conn_opt)
@@ -180,6 +181,7 @@ class RedisCluster
         try_random_node = false
         while ttl > 0
             ttl -= 1
+            initialize_slots_cache if @refresh_table_asap
             key = get_key_from_command(argv)
             raise "No way to dispatch this command to Redis Cluster." if !key
             slot = keyslot(key)
@@ -197,7 +199,7 @@ class RedisCluster
                 return r.send(argv[0].to_sym,*argv[1..-1], &blk)
             rescue Errno::ECONNREFUSED, Redis::TimeoutError, Redis::CannotConnectError, Errno::EACCES
                 try_random_node = true
-                sleep(0.1) if ttl < RedisClusterRequestTTL/2
+                sleep(@cluster_retry_interval) if ttl < RedisClusterRequestTTL/2
             rescue => e
                 errv = e.to_s.split
                 if errv[0] == "MOVED" || errv[0] == "ASK"
@@ -215,6 +217,10 @@ class RedisCluster
                         node_name = "#{Resolv.getname(ip)}:#{port}"
                         @connections.update_slot!(newslot, [node_name])
                     end
+                elsif errv[0] == "CLUSTERDOWN"
+                    try_random_node = true
+                    sleep(@cluster_retry_interval) if ttl < RedisClusterRequestTTL/2
+                    @refresh_table_asap = true
                 else
                     raise e
                 end
