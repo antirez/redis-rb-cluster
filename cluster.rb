@@ -23,14 +23,22 @@ require 'set'
 require 'rubygems'
 require 'redis'
 require './crc16'
-require './string_commands'
+require './geo_commands'
+require './hash_commands'
+require './hyperloglog_commands'
+require './list_commands'
 require './set_commands'
 require './sorted_set_commands'
+require './string_commands'
 
 class RedisCluster
-    include StringCommands
+    include GeoCommands
+    include HashCommands
+    include HyperLogLogCommands
+    include ListCommands
     include SetCommands
     include SortedSetCommands
+    include StringCommands
 
     RedisClusterHashSlots = 16384
     RedisClusterRequestTTL = 16
