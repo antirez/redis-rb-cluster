@@ -19,11 +19,26 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+require 'set'
 require 'rubygems'
 require 'redis'
 require './crc16'
+require './geo_commands'
+require './hash_commands'
+require './hyperloglog_commands'
+require './list_commands'
+require './set_commands'
+require './sorted_set_commands'
+require './string_commands'
 
 class RedisCluster
+    include GeoCommands
+    include HashCommands
+    include HyperLogLogCommands
+    include ListCommands
+    include SetCommands
+    include SortedSetCommands
+    include StringCommands
 
     RedisClusterHashSlots = 16384
     RedisClusterRequestTTL = 16
@@ -36,6 +51,10 @@ class RedisCluster
         @opt = opt
         @refresh_table_asap = false
         initialize_slots_cache
+    end
+
+    def inspect()
+        @startup_nodes
     end
 
     def get_redis_link(host,port)
@@ -275,4 +294,3 @@ class RedisCluster
         send_cluster_command(argv)
     end
 end
-
