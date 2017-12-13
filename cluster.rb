@@ -7,10 +7,10 @@
 # distribute, sublicense, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be
 # included in all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -55,24 +55,28 @@ class RedisCluster
     # Contact the startup nodes and try to fetch the hash slots -> instances
     # map in order to initialize the @slots hash.
     def initialize_slots_cache
-        @startup_nodes.each{|n|
+        @startup_nodes.each do |n|
             begin
                 @slots = {}
                 @nodes = []
 
-                r = get_redis_link(n[:host],n[:port])
-                r.cluster("slots").each {|r|
-                    (r[0]..r[1]).each{|slot|
-                        ip,port = r[2]
+                redis_link = get_redis_link(n[:host],n[:port])
+                @cluster_slots = redis_link.cluster("slots")
+
+                @cluster_slots.each do |item|
+                    (item[0]..item[1]).each do |slot|
+                        ip, port = item[2]
                         name = "#{ip}:#{port}"
                         node = {
-                            :host => ip, :port => port,
+                            :host => ip,
+                            :port => port,
                             :name => name
                         }
                         @nodes << node
                         @slots[slot] = node
-                    }
-                }
+                    end
+                end
+
                 populate_startup_nodes
                 @refresh_table_asap = false
             rescue
@@ -81,7 +85,7 @@ class RedisCluster
             end
             # Exit the loop as long as the first node replies
             break
-        }
+        end
     end
 
     # Use @nodes to populate @startup_nodes, so that we have more chances
@@ -90,7 +94,17 @@ class RedisCluster
         # Make sure every node has already a name, so that later the
         # Array uniq! method will work reliably.
         @startup_nodes.each{|n| set_node_name! n}
-        @nodes.each{|n| @startup_nodes << n}
+        @cluster_slots.each do |item|
+            ip, port = item[2]
+            name = "#{ip}:#{port}"
+            node = {
+                :host => ip,
+                :port => port,
+                :name => name
+            }
+            @startup_nodes << node
+        end
+
         @startup_nodes.uniq!
     end
 
