@@ -130,6 +130,8 @@ class RedisCluster
         case argv[0].to_s.downcase
         when "info","multi","exec","slaveof","config","shutdown"
             return nil
+        when "object"
+            return argv[2]
         else
             # Unknown commands, and all the commands having the key
             # as first argument are handled here:
